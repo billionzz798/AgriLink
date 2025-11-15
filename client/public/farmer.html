@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Farmer Dashboard - AgriLink Ghana</title>
+    <link rel="stylesheet" href="/styles/main.css">
+    <link rel="stylesheet" href="/styles/customer.css">
+    <link rel="stylesheet" href="/styles/farmer.css">
+</head>
+<body>
+    <nav class="navbar farmer-navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>🌾 AgriLink Ghana - Farmer</h1>
+            </div>
+            <div class="nav-links">
+                <a href="/farmer#dashboard" class="nav-link">📊 Dashboard</a>
+                <a href="/farmer#products" class="nav-link">📦 My Products</a>
+                <a href="/farmer#orders" class="nav-link">🛒 Orders</a>
+                <a href="/farmer#profile" class="nav-link">👤 Profile</a>
+                <button id="logoutBtn" class="btn btn-secondary btn-sm">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container farmer-container">
+        <div id="loading" class="loading">Loading...</div>
+        
+        <div id="dashboardContent" style="display: none;">
+            <section id="dashboard" class="welcome-section farmer-welcome">
+                <div class="welcome-content">
+                    <h2>Welcome, <span id="farmerName"></span>! 👨‍🌾</h2>
+                    <p class="user-role">Manage your farm products and orders</p>
+                </div>
+                <div class="farmer-stats">
+                    <div class="stat-card stat-success">
+                        <div class="stat-icon">📦</div>
+                        <div class="stat-content">
+                            <h3 id="totalProducts">0</h3>
+                            <p>My Products</p>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-info">
+                        <div class="stat-icon">🛒</div>
+                        <div class="stat-content">
+                            <h3 id="totalOrders">0</h3>
+                            <p>Total Orders</p>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-warning">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-content">
+                            <h3 id="totalRevenue">₵0</h3>
+                            <p>Total Revenue</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="products" class="section">
+                <div class="section-header">
+                    <h3>📦 My Products</h3>
+                    <button id="addProductBtn" class="btn btn-primary">
+                        <span>➕</span> Add Product
+                    </button>
+                </div>
+                <div id="productsGrid" class="products-grid"></div>
+                <div id="noProducts" class="no-products" style="display: none;">
+                    <p>You haven't added any products yet. Click "Add Product" to get started!</p>
+                </div>
+            </section>
+
+            <section id="orders" class="section">
+                <div class="section-header">
+                    <h3>🛒 Orders Received</h3>
+                    <select id="orderStatusFilter" class="filter-select">
+                        <option value="">All Statuses</option>
+                        <option value="pending">Pending</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="processing">Processing</option>
+                        <option value="shipped">Shipped</option>
+                        <option value="delivered">Delivered</option>
+                    </select>
+                </div>
+                <div id="ordersList" class="orders-list"></div>
+                <div id="noOrders" class="no-orders" style="display: none;">
+                    <p>You haven't received any orders yet.</p>
+                </div>
+            </section>
+
+            <section id="profile" class="section">
+                <div class="section-header">
+                    <h3>👤 My Profile</h3>
+                    <button id="editProfileBtn" class="btn btn-primary">Edit Profile</button>
+                </div>
+                <div id="profileInfo" class="profile-info"></div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Product Modal -->
+    <div id="productModal" class="modal">
+        <div class="modal-content product-modal">
+            <div class="modal-header">
+                <h2 id="productModalTitle">Add Product</h2>
+                <span class="close">&times;</span>
+            </div>
+            <form id="productForm">
+                <input type="hidden" id="productId">
+                <div class="form-group">
+                    <label for="productName">Product Name *</label>
+                    <input type="text" id="productName" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="productDescription">Description *</label>
+                    <textarea id="productDescription" name="description" rows="4" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="productCategory">Category *</label>
+                    <select id="productCategory" name="categoryId" required>
+                        <option value="">Select Category</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="b2bPrice">B2B Price (₵) *</label>
+                        <input type="number" id="b2bPrice" name="b2bPrice" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="b2bMinQty">B2B Min Quantity</label>
+                        <input type="number" id="b2bMinQty" name="b2bMinQty" min="1" value="1">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="b2cPrice">B2C Price (₵) *</label>
+                        <input type="number" id="b2cPrice" name="b2cPrice" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="priceUnit">Unit *</label>
+                        <select id="priceUnit" name="unit" required>
+                            <option value="kg">kg</option>
+                            <option value="g">g</option>
+                            <option value="lb">lb</option>
+                            <option value="piece">piece</option>
+                            <option value="bag">bag</option>
+                            <option value="crate">crate</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="totalQuantity">Total Quantity *</label>
+                        <input type="number" id="totalQuantity" name="totalQuantity" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="productMarketplace">Marketplace</label>
+                        <select id="productMarketplace" name="marketplace">
+                            <option value="both">Both B2B & B2C</option>
+                            <option value="b2b">B2B Only</option>
+                            <option value="b2c">B2C Only</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="productStatus">Status</label>
+                    <select id="productStatus" name="status">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="out_of_stock">Out of Stock</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeProductModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Product</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/farmer.js"></script>
+</body>
+</html>

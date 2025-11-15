@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Dashboard - AgriLink Ghana</title>
+    <link rel="stylesheet" href="/styles/main.css">
+    <link rel="stylesheet" href="/styles/customer.css">
+</head>
+<body>
+    <nav class="navbar customer-navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>🌾 AgriLink Ghana</h1>
+            </div>
+            <div class="nav-links">
+                <a href="/customer#products" class="nav-link">🛍️ Shop</a>
+                <a href="/customer#orders" class="nav-link">📦 My Orders</a>
+                <a href="/customer#profile" class="nav-link">👤 Profile</a>
+                <div class="cart-icon-container">
+                    <button id="cartBtn" class="cart-btn">
+                        🛒 Cart
+                        <span id="cartCount" class="cart-badge">0</span>
+                    </button>
+                </div>
+                <button id="logoutBtn" class="btn btn-secondary btn-sm">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container customer-container">
+        <div id="loading" class="loading">Loading...</div>
+        
+        <div id="dashboardContent" style="display: none;">
+            <section class="welcome-section">
+                <div class="welcome-content">
+                    <h2>Welcome back, <span id="userName"></span>! 👋</h2>
+                    <p class="user-role">Shopping as: <span id="userRole"></span></p>
+                </div>
+            </section>
+
+            <section id="products" class="section">
+                <div class="section-header">
+                    <h3>🛍️ Browse Products</h3>
+                    <div class="filters-container">
+                        <div class="search-box">
+                            <input type="text" id="searchInput" placeholder="🔍 Search products..." class="search-input">
+                        </div>
+                        <select id="categoryFilter" class="filter-select">
+                            <option value="">All Categories</option>
+                        </select>
+                        <select id="marketplaceFilter" class="filter-select">
+                            <option value="">All Marketplaces</option>
+                            <option value="b2b">B2B</option>
+                            <option value="b2c">B2C</option>
+                        </select>
+                        <select id="sortFilter" class="filter-select">
+                            <option value="newest">Newest First</option>
+                            <option value="price-low">Price: Low to High</option>
+                            <option value="price-high">Price: High to Low</option>
+                            <option value="name">Name: A to Z</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="productsGrid" class="products-grid"></div>
+                <div id="noProducts" class="no-products" style="display: none;">
+                    <p>No products found. Try adjusting your filters.</p>
+                </div>
+            </section>
+
+            <section id="orders" class="section">
+                <div class="section-header">
+                    <h3>📦 My Orders</h3>
+                </div>
+                <div id="ordersList" class="orders-list"></div>
+                <div id="noOrders" class="no-orders" style="display: none;">
+                    <p>You haven't placed any orders yet.</p>
+                </div>
+            </section>
+
+            <section id="profile" class="section">
+                <div class="section-header">
+                    <h3>👤 My Profile</h3>
+                    <button id="editProfileBtn" class="btn btn-primary">Edit Profile</button>
+                </div>
+                <div id="profileInfo" class="profile-info"></div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Product Modal -->
+    <div id="productModal" class="modal">
+        <div class="modal-content product-modal">
+            <span class="close">&times;</span>
+            <div id="productModalBody"></div>
+        </div>
+    </div>
+
+    <!-- Cart Sidebar -->
+    <div id="cartSidebar" class="cart-sidebar">
+        <div class="cart-header">
+            <h3>🛒 Shopping Cart</h3>
+            <button class="close-cart" onclick="closeCart()">&times;</button>
+        </div>
+        <div id="cartItems" class="cart-items">
+            <p class="empty-cart">Your cart is empty</p>
+        </div>
+        <div class="cart-footer">
+            <div class="cart-total">
+                <strong>Total: <span id="cartTotal">₵0.00</span></strong>
+            </div>
+            <button id="checkoutBtn" class="btn btn-primary btn-block" onclick="checkout()" disabled>
+                Proceed to Checkout
+            </button>
+        </div>
+    </div>
+    <div id="cartOverlay" class="cart-overlay" onclick="closeCart()"></div>
+
+    <!-- Checkout Modal -->
+    <div id="checkoutModal" class="modal">
+        <div class="modal-content checkout-modal">
+            <div class="modal-header">
+                <h2>Checkout</h2>
+                <span class="close" onclick="closeCheckoutModal()">&times;</span>
+            </div>
+            <form id="checkoutForm">
+                <div class="checkout-section">
+                    <h4>Delivery Address</h4>
+                    <div class="form-group">
+                        <label for="deliveryStreet">Street Address *</label>
+                        <input type="text" id="deliveryStreet" name="street" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="deliveryCity">City *</label>
+                            <input type="text" id="deliveryCity" name="city" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="deliveryRegion">Region *</label>
+                            <input type="text" id="deliveryRegion" name="region" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="deliveryPostalCode">Postal Code</label>
+                        <input type="text" id="deliveryPostalCode" name="postalCode">
+                    </div>
+                </div>
+                <div class="checkout-section">
+                    <h4>Order Summary</h4>
+                    <div id="checkoutItems"></div>
+                    <div class="order-total">
+                        <strong>Total: <span id="checkoutTotal">₵0.00</span></strong>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="orderNotes">Order Notes (Optional)</label>
+                    <textarea id="orderNotes" name="notes" rows="3" placeholder="Any special instructions..."></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeCheckoutModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Place Order</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/customer.js"></script>
+</body>
+</html>

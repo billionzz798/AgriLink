@@ -1,0 +1,11 @@
+.buyer-navbar {
+    background: #007bff;
+}
+
+.buyer-container {
+    padding: 2rem 0;
+}
+
+.buyer-welcome {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+}

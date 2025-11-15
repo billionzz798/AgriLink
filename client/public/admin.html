@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - AgriLink Ghana</title>
+    <link rel="stylesheet" href="/styles/main.css">
+    <link rel="stylesheet" href="/styles/admin.css">
+</head>
+<body>
+    <nav class="navbar admin-navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>🌾 AgriLink Ghana - Admin</h1>
+            </div>
+            <div class="nav-links">
+                <a href="/admin#dashboard" class="nav-link">📊 Dashboard</a>
+                <a href="/admin#users" class="nav-link">👥 Users</a>
+                <a href="/admin#products" class="nav-link">📦 Products</a>
+                <a href="/admin#orders" class="nav-link">🛒 Orders</a>
+                <a href="/admin#categories" class="nav-link">📁 Categories</a>
+                <a href="/admin#brands" class="nav-link">🏷️ Brands</a>
+                <button id="logoutBtn" class="btn btn-secondary btn-sm">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container admin-container">
+        <div id="loading" class="loading">Loading...</div>
+        
+        <div id="adminContent" style="display: none;">
+            <section id="dashboard" class="dashboard-section">
+                <div class="section-header">
+                    <h2>📊 Dashboard Overview</h2>
+                    <p class="section-subtitle">Welcome back, <span id="adminName"></span>!</p>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card stat-primary">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-content">
+                            <h3 id="totalUsers">0</h3>
+                            <p>Total Users</p>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-success">
+                        <div class="stat-icon">📦</div>
+                        <div class="stat-content">
+                            <h3 id="totalProducts">0</h3>
+                            <p>Total Products</p>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-info">
+                        <div class="stat-icon">🛒</div>
+                        <div class="stat-content">
+                            <h3 id="totalOrders">0</h3>
+                            <p>Total Orders</p>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-warning">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-content">
+                            <h3 id="totalRevenue">₵0</h3>
+                            <p>Total Revenue</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="users" class="section">
+                <div class="section-header">
+                    <h3>👥 User Management</h3>
+                    <div class="section-actions">
+                        <input type="text" id="userSearch" placeholder="Search users..." class="search-input">
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="usersTable" class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Phone</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="products" class="section">
+                <div class="section-header">
+                    <h3>📦 Product Management</h3>
+                    <div class="section-actions">
+                        <input type="text" id="productSearch" placeholder="Search products..." class="search-input">
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="productsTable" class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Farmer</th>
+                                <th>Category</th>
+                                <th>Price (B2C)</th>
+                                <th>Stock</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productsTableBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="orders" class="section">
+                <div class="section-header">
+                    <h3>🛒 Order Management</h3>
+                    <div class="section-actions">
+                        <select id="orderStatusFilter" class="filter-select">
+                            <option value="">All Statuses</option>
+                            <option value="pending">Pending</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="processing">Processing</option>
+                            <option value="shipped">Shipped</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="ordersTable" class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Order Number</th>
+                                <th>Buyer</th>
+                                <th>Farmer</th>
+                                <th>Total</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordersTableBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="categories" class="section">
+                <div class="section-header">
+                    <h3>📁 Category Management</h3>
+                    <button id="addCategoryBtn" class="btn btn-primary">
+                        <span>➕</span> Add Category
+                    </button>
+                </div>
+                <div id="categoriesGrid" class="categories-grid"></div>
+            </section>
+
+            <section id="brands" class="section">
+                <div class="section-header">
+                    <h3>🏷️ Brand Management</h3>
+                    <button id="addBrandBtn" class="btn btn-primary">
+                        <span>➕</span> Add Brand
+                    </button>
+                </div>
+                <div id="brandsGrid" class="brands-grid"></div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Category Modal -->
+    <div id="categoryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="categoryModalTitle">Add Category</h2>
+                <span class="close">&times;</span>
+            </div>
+            <form id="categoryForm">
+                <input type="hidden" id="categoryId">
+                <div class="form-group">
+                    <label for="categoryName">Category Name *</label>
+                    <input type="text" id="categoryName" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="categoryDescription">Description</label>
+                    <textarea id="categoryDescription" name="description" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="categoryParent">Parent Category</label>
+                    <select id="categoryParent" name="parentId">
+                        <option value="">None (Top Level)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="categoryActive" name="isActive" checked>
+                        Active
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeCategoryModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Category</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Brand Modal -->
+    <div id="brandModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="brandModalTitle">Add Brand</h2>
+                <span class="close">&times;</span>
+            </div>
+            <form id="brandForm">
+                <input type="hidden" id="brandId">
+                <div class="form-group">
+                    <label for="brandName">Brand Name *</label>
+                    <input type="text" id="brandName" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="brandDescription">Description</label>
+                    <textarea id="brandDescription" name="description" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="brandWebsite">Website URL</label>
+                    <input type="url" id="brandWebsite" name="website" placeholder="https://example.com">
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="brandActive" name="isActive" checked>
+                        Active
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeBrandModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Brand</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/admin.js"></script>
+</body>
+</html>

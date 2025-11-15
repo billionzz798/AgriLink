@@ -1,0 +1,30 @@
+.farmer-navbar {
+    background: #28a745;
+}
+
+.farmer-container {
+    padding: 2rem 0;
+}
+
+.farmer-welcome {
+    background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+}
+
+.farmer-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+.product-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.order-actions {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e0e0e0;
+}
