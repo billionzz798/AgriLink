@@ -184,6 +184,13 @@ async function showProductModal(productId) {
     const imageUrl = getProductImage(product);
     const fallbackUrl = `https://via.placeholder.com/400x400/2c5530/ffffff?text=${encodeURIComponent(product.name)}`;
     
+    // Store product data in data attributes for later use
+    body.setAttribute('data-product-id', product.id);
+    body.setAttribute('data-product-price', pricing.price || 0);
+    body.setAttribute('data-product-unit', pricing.unit || 'kg');
+    body.setAttribute('data-product-stock', stock);
+    body.setAttribute('data-product-min-qty', minQty);
+    
     body.innerHTML = `
         <div class="product-modal-content">
             <div>
@@ -204,14 +211,14 @@ async function showProductModal(productId) {
                 <div class="form-group">
                     <label><strong>Quantity:</strong></label>
                     <div style="display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem;">
-                        <button type="button" class="quantity-btn" onclick="decreaseQuantity(${minQty})">-</button>
+                        <button type="button" class="quantity-btn" id="decreaseQtyBtn">-</button>
                         <input type="number" id="orderQuantity" min="${minQty}" max="${stock}" value="${minQty}" class="quantity-input">
-                        <button type="button" class="quantity-btn" onclick="increaseQuantity(${stock})">+</button>
+                        <button type="button" class="quantity-btn" id="increaseQtyBtn">+</button>
                     </div>
                     ${currentUser.role === 'institutional_buyer' && pricing.minQuantity > 1 ? 
                         `<p style="color: #666; font-size: 0.85rem; margin-top: 0.5rem;">Minimum order: ${pricing.minQuantity} ${pricing.unit || 'kg'}</p>` : ''}
                 </div>
-                <button onclick="addToCart('${product.id}', ${pricing.price || 0}, '${pricing.unit || 'kg'}', ${stock}, ${minQty})" 
+                <button id="addToCartBtn" 
                         class="btn btn-primary btn-block" 
                         ${stock === 0 ? 'disabled' : ''}>
                     ${stock === 0 ? 'Out of Stock' : 'Add to Cart'}
@@ -219,6 +226,46 @@ async function showProductModal(productId) {
             </div>
         </div>
     `;
+    
+    // Attach event listeners after innerHTML is set
+    const decreaseBtn = document.getElementById('decreaseQtyBtn');
+    const increaseBtn = document.getElementById('increaseQtyBtn');
+    const addToCartBtn = document.getElementById('addToCartBtn');
+    
+    if (decreaseBtn) {
+        decreaseBtn.addEventListener('click', () => {
+            const input = document.getElementById('orderQuantity');
+            if (!input) return;
+            const current = parseInt(input.value) || minQty;
+            const minValue = parseInt(input.min) || minQty;
+            if (current > minValue) {
+                input.value = current - 1;
+            }
+        });
+    }
+    
+    if (increaseBtn) {
+        increaseBtn.addEventListener('click', () => {
+            const input = document.getElementById('orderQuantity');
+            if (!input) return;
+            const current = parseInt(input.value) || minQty;
+            if (current < stock) {
+                input.value = current + 1;
+            }
+        });
+    }
+    
+    if (addToCartBtn) {
+        addToCartBtn.addEventListener('click', () => {
+            const productId = body.getAttribute('data-product-id');
+            const price = parseFloat(body.getAttribute('data-product-price')) || 0;
+            const unit = body.getAttribute('data-product-unit') || 'kg';
+            const maxStock = parseInt(body.getAttribute('data-product-stock')) || 0;
+            const minQtyValue = parseInt(body.getAttribute('data-product-min-qty')) || 1;
+            
+            addToCart(productId, price, unit, maxStock, minQtyValue);
+        });
+    }
     
     modal.style.display = 'block';
 }
