@@ -31,8 +31,10 @@ async function checkAuth() {
         if (response.ok) {
             const data = await response.json();
             currentUser = data.user;
-            document.getElementById('userName').textContent = currentUser.name;
-            document.getElementById('userRole').textContent = currentUser.role.replace('_', ' ');
+            const userNameEl = document.getElementById('userName');
+            const userRoleEl = document.getElementById('userRole');
+            if (userNameEl) userNameEl.textContent = currentUser.name;
+            if (userRoleEl) userRoleEl.textContent = currentUser.role.replace('_', ' ');
             return true;
         } else {
             window.location.href = '/login';
@@ -51,11 +53,13 @@ async function loadCategories() {
         categories = await response.json();
         
         const categoryFilter = document.getElementById('categoryFilter');
-        categoryFilter.innerHTML = '<option value="">All Categories</option>' +
-            categories
-                .filter(cat => cat.isActive)
-                .map(cat => `<option value="${cat.id}">${cat.name}</option>`)
-                .join('');
+        if (categoryFilter) {
+            categoryFilter.innerHTML = '<option value="">All Categories</option>' +
+                categories
+                    .filter(cat => cat.isActive)
+                    .map(cat => `<option value="${cat.id}">${cat.name}</option>`)
+                    .join('');
+        }
     } catch (error) {
         console.error('Error loading categories:', error);
     }
@@ -63,14 +67,12 @@ async function loadCategories() {
 
 async function loadProducts() {
     try {
-        // Load products with category and farmer relationships
         const response = await fetch(`${API_BASE}/products?include=category,farmer`);
         const data = await response.json();
         products = data.products || [];
         filterAndDisplayProducts();
     } catch (error) {
         console.error('Error loading products:', error);
-        // Try without relationships if that fails
         try {
             const response = await fetch(`${API_BASE}/products`);
             const data = await response.json();
@@ -83,32 +85,37 @@ async function loadProducts() {
 }
 
 function filterAndDisplayProducts() {
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const categoryFilter = document.getElementById('categoryFilter').value;
-    const marketplaceFilter = document.getElementById('marketplaceFilter').value;
-    const sortFilter = document.getElementById('sortFilter').value;
+    const searchInput = document.getElementById('searchInput');
+    const categoryFilter = document.getElementById('categoryFilter');
+    const marketplaceFilter = document.getElementById('marketplaceFilter');
+    const sortFilter = document.getElementById('sortFilter');
+    
+    const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+    const categoryValue = categoryFilter ? categoryFilter.value : '';
+    const marketplaceValue = marketplaceFilter ? marketplaceFilter.value : '';
+    const sortValue = sortFilter ? sortFilter.value : '';
     
     let filtered = products.filter(product => {
         if (product.status !== 'active') return false;
         if (searchTerm && !product.name.toLowerCase().includes(searchTerm) && 
             !product.description.toLowerCase().includes(searchTerm)) return false;
-        if (categoryFilter && product.categoryId !== categoryFilter) return false;
-        if (marketplaceFilter) {
-            const marketplace = currentUser.role === 'institutional_buyer' ? 'b2b' : 'b2c';
+        if (categoryValue && product.categoryId !== categoryValue) return false;
+        if (marketplaceValue) {
+            const marketplace = currentUser?.role === 'institutional_buyer' ? 'b2b' : 'b2c';
             if (product.marketplace !== marketplace && product.marketplace !== 'both') return false;
         }
         return true;
     });
     
     filtered.sort((a, b) => {
-        switch(sortFilter) {
+        switch(sortValue) {
             case 'price-low':
-                const priceA = currentUser.role === 'institutional_buyer' ? (a.pricing?.b2b?.price || 0) : (a.pricing?.b2c?.price || 0);
-                const priceB = currentUser.role === 'institutional_buyer' ? (b.pricing?.b2b?.price || 0) : (b.pricing?.b2c?.price || 0);
+                const priceA = currentUser?.role === 'institutional_buyer' ? (a.pricing?.b2b?.price || 0) : (a.pricing?.b2c?.price || 0);
+                const priceB = currentUser?.role === 'institutional_buyer' ? (b.pricing?.b2b?.price || 0) : (b.pricing?.b2c?.price || 0);
                 return priceA - priceB;
             case 'price-high':
-                const priceA2 = currentUser.role === 'institutional_buyer' ? (a.pricing?.b2b?.price || 0) : (a.pricing?.b2c?.price || 0);
-                const priceB2 = currentUser.role === 'institutional_buyer' ? (b.pricing?.b2b?.price || 0) : (b.pricing?.b2c?.price || 0);
+                const priceA2 = currentUser?.role === 'institutional_buyer' ? (a.pricing?.b2b?.price || 0) : (a.pricing?.b2c?.price || 0);
+                const priceB2 = currentUser?.role === 'institutional_buyer' ? (b.pricing?.b2b?.price || 0) : (b.pricing?.b2c?.price || 0);
                 return priceB2 - priceA2;
             case 'name':
                 return a.name.localeCompare(b.name);
@@ -118,13 +125,16 @@ function filterAndDisplayProducts() {
     });
     
     displayProducts(filtered);
-    document.getElementById('noProducts').style.display = filtered.length === 0 ? 'block' : 'none';
+    const noProductsEl = document.getElementById('noProducts');
+    if (noProductsEl) noProductsEl.style.display = filtered.length === 0 ? 'block' : 'none';
 }
 
 function displayProducts(productsToShow) {
     const grid = document.getElementById('productsGrid');
+    if (!grid) return;
+    
     grid.innerHTML = productsToShow.map(product => {
-        const pricing = currentUser.role === 'institutional_buyer' ? (product.pricing?.b2b || {}) : (product.pricing?.b2c || {});
+        const pricing = currentUser?.role === 'institutional_buyer' ? (product.pricing?.b2b || {}) : (product.pricing?.b2c || {});
         const stock = product.inventory?.availableQuantity || 0;
         const stockClass = stock > 10 ? 'in-stock' : stock > 0 ? 'low-stock' : 'out-of-stock';
         const stockText = stock > 10 ? 'In Stock' : stock > 0 ? 'Low Stock' : 'Out of Stock';
@@ -148,7 +158,6 @@ function displayProducts(productsToShow) {
 async function showProductModal(productId) {
     let product = products.find(p => p.id === productId);
     
-    // If product not found or missing details, fetch it
     if (!product || !product.pricing) {
         try {
             const response = await fetch(`${API_BASE}/products/${productId}`);
@@ -167,24 +176,19 @@ async function showProductModal(productId) {
     }
 
     const modal = document.getElementById('productModal');
-    if (!modal) {
+    const body = document.getElementById('productModalBody');
+    
+    if (!modal || !body) {
         showNotification('Product modal not found', 'error');
         return;
     }
 
-    const body = document.getElementById('productModalBody');
-    if (!body) {
-        showNotification('Product modal body not found', 'error');
-        return;
-    }
-
-    const pricing = currentUser.role === 'institutional_buyer' ? (product.pricing?.b2b || {}) : (product.pricing?.b2c || {});
+    const pricing = currentUser?.role === 'institutional_buyer' ? (product.pricing?.b2b || {}) : (product.pricing?.b2c || {});
     const stock = product.inventory?.availableQuantity || 0;
-    const minQty = currentUser.role === 'institutional_buyer' ? (pricing.minQuantity || 1) : 1;
+    const minQty = currentUser?.role === 'institutional_buyer' ? (pricing.minQuantity || 1) : 1;
     const imageUrl = getProductImage(product);
     const fallbackUrl = `https://via.placeholder.com/400x400/2c5530/ffffff?text=${encodeURIComponent(product.name)}`;
     
-    // Store product data in data attributes for later use
     body.setAttribute('data-product-id', product.id);
     body.setAttribute('data-product-price', pricing.price || 0);
     body.setAttribute('data-product-unit', pricing.unit || 'kg');
@@ -215,7 +219,7 @@ async function showProductModal(productId) {
                         <input type="number" id="orderQuantity" min="${minQty}" max="${stock}" value="${minQty}" class="quantity-input">
                         <button type="button" class="quantity-btn" id="increaseQtyBtn">+</button>
                     </div>
-                    ${currentUser.role === 'institutional_buyer' && pricing.minQuantity > 1 ? 
+                    ${currentUser?.role === 'institutional_buyer' && pricing.minQuantity > 1 ? 
                         `<p style="color: #666; font-size: 0.85rem; margin-top: 0.5rem;">Minimum order: ${pricing.minQuantity} ${pricing.unit || 'kg'}</p>` : ''}
                 </div>
                 <button id="addToCartBtn" 
@@ -227,13 +231,12 @@ async function showProductModal(productId) {
         </div>
     `;
     
-    // Attach event listeners after innerHTML is set
     const decreaseBtn = document.getElementById('decreaseQtyBtn');
     const increaseBtn = document.getElementById('increaseQtyBtn');
     const addToCartBtn = document.getElementById('addToCartBtn');
     
     if (decreaseBtn) {
-        decreaseBtn.addEventListener('click', () => {
+        decreaseBtn.onclick = () => {
             const input = document.getElementById('orderQuantity');
             if (!input) return;
             const current = parseInt(input.value) || minQty;
@@ -241,22 +244,22 @@ async function showProductModal(productId) {
             if (current > minValue) {
                 input.value = current - 1;
             }
-        });
+        };
     }
     
     if (increaseBtn) {
-        increaseBtn.addEventListener('click', () => {
+        increaseBtn.onclick = () => {
             const input = document.getElementById('orderQuantity');
             if (!input) return;
             const current = parseInt(input.value) || minQty;
             if (current < stock) {
                 input.value = current + 1;
             }
-        });
+        };
     }
     
     if (addToCartBtn) {
-        addToCartBtn.addEventListener('click', () => {
+        addToCartBtn.onclick = () => {
             const productId = body.getAttribute('data-product-id');
             const price = parseFloat(body.getAttribute('data-product-price')) || 0;
             const unit = body.getAttribute('data-product-unit') || 'kg';
@@ -264,29 +267,10 @@ async function showProductModal(productId) {
             const minQtyValue = parseInt(body.getAttribute('data-product-min-qty')) || 1;
             
             addToCart(productId, price, unit, maxStock, minQtyValue);
-        });
+        };
     }
     
     modal.style.display = 'block';
-}
-
-function increaseQuantity(max) {
-    const input = document.getElementById('orderQuantity');
-    if (!input) return;
-    const current = parseInt(input.value) || 1;
-    if (current < max) {
-        input.value = current + 1;
-    }
-}
-
-function decreaseQuantity(min) {
-    const input = document.getElementById('orderQuantity');
-    if (!input) return;
-    const current = parseInt(input.value) || 1;
-    const minValue = parseInt(input.min) || min;
-    if (current > minValue) {
-        input.value = current - 1;
-    }
 }
 
 function addToCart(productId, price, unit, maxStock, minQty) {
@@ -332,7 +316,8 @@ function addToCart(productId, price, unit, maxStock, minQty) {
     
     saveCart();
     updateCartUI();
-    document.getElementById('productModal').style.display = 'none';
+    const productModal = document.getElementById('productModal');
+    if (productModal) productModal.style.display = 'none';
     
     showNotification('Product added to cart!');
 }
@@ -381,7 +366,7 @@ function updateCartUI() {
     const checkoutBtn = document.getElementById('checkoutBtn');
     
     if (cart.length === 0) {
-        cartItems.innerHTML = '<p class="empty-cart">Your cart is empty</p>';
+        if (cartItems) cartItems.innerHTML = '<p class="empty-cart">Your cart is empty</p>';
         if (checkoutBtn) checkoutBtn.disabled = true;
         return;
     }
@@ -391,29 +376,32 @@ function updateCartUI() {
     let total = 0;
     const fallbackImage = 'https://via.placeholder.com/80x80/2c5530/ffffff?text=Product';
     
-    cartItems.innerHTML = cart.map(item => {
-        const itemTotal = item.price * item.quantity;
-        total += itemTotal;
-        return `
-            <div class="cart-item">
-                <img src="${item.productImage}" 
-                     alt="${item.productName}" 
-                     class="cart-item-image" 
-                     onerror="this.onerror=null; this.src='${fallbackImage}';">
-                <div class="cart-item-details">
-                    <div class="cart-item-name">${item.productName}</div>
-                    <div class="cart-item-price">₵${item.price}/${item.unit}</div>
-                    <div class="cart-item-actions">
-                        <button type="button" class="quantity-btn" onclick="updateCartQuantity('${item.productId}', -1)">-</button>
-                        <input type="number" value="${item.quantity}" class="quantity-input" readonly>
-                        <button type="button" class="quantity-btn" onclick="updateCartQuantity('${item.productId}', 1)">+</button>
-                        <button type="button" class="remove-item-btn" onclick="removeFromCart('${item.productId}')">Remove</button>
+    // Use data attributes for event delegation instead of inline onclick
+    if (cartItems) {
+        cartItems.innerHTML = cart.map(item => {
+            const itemTotal = item.price * item.quantity;
+            total += itemTotal;
+            return `
+                <div class="cart-item" data-product-id="${item.productId}">
+                    <img src="${item.productImage}" 
+                         alt="${item.productName}" 
+                         class="cart-item-image" 
+                         onerror="this.onerror=null; this.src='${fallbackImage}';">
+                    <div class="cart-item-details">
+                        <div class="cart-item-name">${item.productName}</div>
+                        <div class="cart-item-price">₵${item.price}/${item.unit}</div>
+                        <div class="cart-item-actions">
+                            <button type="button" class="quantity-btn cart-decrease-btn" data-product-id="${item.productId}" data-change="-1">-</button>
+                            <input type="number" value="${item.quantity}" class="quantity-input" readonly>
+                            <button type="button" class="quantity-btn cart-increase-btn" data-product-id="${item.productId}" data-change="1">+</button>
+                            <button type="button" class="remove-item-btn cart-remove-btn" data-product-id="${item.productId}">Remove</button>
+                        </div>
                     </div>
+                    <div style="font-weight: 600; color: #2c5530;">₵${itemTotal.toFixed(2)}</div>
                 </div>
-                <div style="font-weight: 600; color: #2c5530;">₵${itemTotal.toFixed(2)}</div>
-            </div>
-        `;
-    }).join('');
+            `;
+        }).join('');
+    }
     
     const cartTotalEl = document.getElementById('cartTotal');
     if (cartTotalEl) {
@@ -465,7 +453,6 @@ function checkout() {
     
     checkoutTotal.textContent = `₵${total.toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     
-    // Pre-fill address if available
     if (currentUser && currentUser.address) {
         const streetEl = document.getElementById('deliveryStreet');
         const cityEl = document.getElementById('deliveryCity');
@@ -517,12 +504,14 @@ function displayOrders(ordersToShow) {
     const list = document.getElementById('ordersList');
     
     if (ordersToShow.length === 0) {
-        document.getElementById('noOrders').style.display = 'block';
+        const noOrdersEl = document.getElementById('noOrders');
+        if (noOrdersEl) noOrdersEl.style.display = 'block';
         if (list) list.innerHTML = '';
         return;
     }
     
-    document.getElementById('noOrders').style.display = 'none';
+    const noOrdersEl = document.getElementById('noOrders');
+    if (noOrdersEl) noOrdersEl.style.display = 'none';
     
     if (list) {
         list.innerHTML = ordersToShow.map(order => {
@@ -612,7 +601,7 @@ async function loadProfile() {
     }
 }
 
-// Notification system with error type support
+// Notification system
 function showNotification(message, type = 'success') {
     const notification = document.createElement('div');
     notification.style.cssText = `
@@ -648,7 +637,7 @@ function openEditProfileModal() {
             <div class="modal-content">
                 <div class="modal-header">
                     <h2>Edit Profile</h2>
-                    <span class="close" onclick="closeEditProfileModal()">&times;</span>
+                    <span class="close">&times;</span>
                 </div>
                 <form id="editProfileForm">
                     <div class="form-group">
@@ -678,7 +667,7 @@ function openEditProfileModal() {
                         <input type="text" id="profilePostalCode" name="postalCode">
                     </div>
                     <div class="modal-actions">
-                        <button type="button" class="btn btn-secondary" onclick="closeEditProfileModal()">Cancel</button>
+                        <button type="button" class="btn btn-secondary">Cancel</button>
                         <button type="submit" class="btn btn-primary">Save Changes</button>
                     </div>
                 </form>
@@ -686,40 +675,52 @@ function openEditProfileModal() {
         `;
         document.body.appendChild(modal);
         
-        // Form submission handler
-        document.getElementById('editProfileForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            await updateProfile();
-        });
+        const form = document.getElementById('editProfileForm');
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await updateProfile();
+            });
+        }
+        
+        const closeBtn = modal.querySelector('.close');
+        if (closeBtn) {
+            closeBtn.onclick = () => closeEditProfileModal();
+        }
+        
+        const cancelBtn = modal.querySelector('.btn-secondary');
+        if (cancelBtn) {
+            cancelBtn.onclick = () => closeEditProfileModal();
+        }
     }
     
-    // Populate form with current user data
     if (currentUser) {
-        document.getElementById('profileName').value = currentUser.name || '';
-        document.getElementById('profilePhone').value = currentUser.phone || '';
+        const nameInput = document.getElementById('profileName');
+        const phoneInput = document.getElementById('profilePhone');
+        const streetInput = document.getElementById('profileStreet');
+        const cityInput = document.getElementById('profileCity');
+        const regionInput = document.getElementById('profileRegion');
+        const postalInput = document.getElementById('profilePostalCode');
+        
+        if (nameInput) nameInput.value = currentUser.name || '';
+        if (phoneInput) phoneInput.value = currentUser.phone || '';
         if (currentUser.address) {
-            document.getElementById('profileStreet').value = currentUser.address.street || '';
-            document.getElementById('profileCity').value = currentUser.address.city || '';
-            document.getElementById('profileRegion').value = currentUser.address.region || '';
-            document.getElementById('profilePostalCode').value = currentUser.address.postalCode || '';
+            if (streetInput) streetInput.value = currentUser.address.street || '';
+            if (cityInput) cityInput.value = currentUser.address.city || '';
+            if (regionInput) regionInput.value = currentUser.address.region || '';
+            if (postalInput) postalInput.value = currentUser.address.postalCode || '';
         }
     }
     
     modal.style.display = 'block';
 }
 
-function closeEditProfileModal() {
-    const modal = document.getElementById('editProfileModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
-}
-
 async function updateProfile() {
     try {
         const form = document.getElementById('editProfileForm');
-        const formData = new FormData(form);
+        if (!form) return;
         
+        const formData = new FormData(form);
         const data = {
             name: formData.get('name'),
             phone: formData.get('phone'),
@@ -757,16 +758,28 @@ async function updateProfile() {
     }
 }
 
-// Event Listeners
-document.addEventListener('DOMContentLoaded', () => {
-    // Initialize cart UI on page load
-    updateCartUI();
-    
-    // Product card click handler using event delegation
+function closeEditProfileModal() {
+    const modal = document.getElementById('editProfileModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// EXPORT FUNCTIONS TO WINDOW FOR INLINE HANDLERS
+window.openCart = openCart;
+window.closeCart = closeCart;
+window.checkout = checkout;
+window.closeCheckoutModal = closeCheckoutModal;
+window.updateCartQuantity = updateCartQuantity;
+window.removeFromCart = removeFromCart;
+window.closeEditProfileModal = closeEditProfileModal;
+
+// Initialize all event listeners
+function initializeEventListeners() {
+    // Product card click handler
     const productsGrid = document.getElementById('productsGrid');
     if (productsGrid) {
         productsGrid.addEventListener('click', (e) => {
-            // Find the closest product-card element
             const productCard = e.target.closest('.product-card');
             if (productCard) {
                 const productId = productCard.getAttribute('data-product-id');
@@ -777,28 +790,77 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
+    // Cart sidebar event delegation - THIS IS CRITICAL FOR CART BUTTONS
+    const cartItems = document.getElementById('cartItems');
+    if (cartItems) {
+        cartItems.addEventListener('click', (e) => {
+            const productId = e.target.getAttribute('data-product-id');
+            if (!productId) return;
+            
+            if (e.target.classList.contains('cart-decrease-btn')) {
+                const change = parseInt(e.target.getAttribute('data-change')) || -1;
+                updateCartQuantity(productId, change);
+            } else if (e.target.classList.contains('cart-increase-btn')) {
+                const change = parseInt(e.target.getAttribute('data-change')) || 1;
+                updateCartQuantity(productId, change);
+            } else if (e.target.classList.contains('cart-remove-btn')) {
+                removeFromCart(productId);
+            }
+        });
+    }
+    
+    // Checkout button
+    const checkoutBtn = document.getElementById('checkoutBtn');
+    if (checkoutBtn) {
+        checkoutBtn.onclick = checkout;
+    }
+    
+    // Cart close button
+    const closeCartBtn = document.querySelector('.close-cart');
+    if (closeCartBtn) {
+        closeCartBtn.onclick = closeCart;
+    }
+    
+    // Cart overlay
+    const cartOverlay = document.getElementById('cartOverlay');
+    if (cartOverlay) {
+        cartOverlay.onclick = closeCart;
+    }
+    
     // Logout button
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
+        logoutBtn.onclick = () => {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             localStorage.removeItem('cart');
             window.location.href = '/login';
-        });
+        };
     }
     
     // Cart button
     const cartBtn = document.getElementById('cartBtn');
     if (cartBtn) {
-        cartBtn.addEventListener('click', openCart);
+        cartBtn.onclick = openCart;
     }
     
     // Edit Profile button
     const editProfileBtn = document.getElementById('editProfileBtn');
     if (editProfileBtn) {
-        editProfileBtn.addEventListener('click', openEditProfileModal);
+        editProfileBtn.onclick = openEditProfileModal;
     }
+    
+    // Navigation links smooth scroll
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const targetId = this.getAttribute('href').substring(1);
+            const targetElement = document.getElementById(targetId);
+            if (targetElement) {
+                targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    });
     
     // Search and filters
     const searchInput = document.getElementById('searchInput');
@@ -821,7 +883,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sortFilter.addEventListener('change', filterAndDisplayProducts);
     }
     
-    // Updated checkout form handler with Paystack integration
+    // Checkout form
     const checkoutForm = document.getElementById('checkoutForm');
     if (checkoutForm) {
         checkoutForm.addEventListener('submit', async (e) => {
@@ -840,7 +902,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 postalCode: formData.get('postalCode') || ''
             };
             
-            // Validate required fields
             if (!deliveryAddress.street || !deliveryAddress.city || !deliveryAddress.region) {
                 showNotification('Please fill in all required address fields', 'error');
                 return;
@@ -861,14 +922,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 
-                // Disable submit button
                 const submitBtn = e.target.querySelector('button[type="submit"]');
                 if (submitBtn) {
                     submitBtn.disabled = true;
                     submitBtn.textContent = 'Creating Order...';
                 }
                 
-                // Step 1: Create order first
                 const orderResponse = await fetch(`${API_BASE}/orders`, {
                     method: 'POST',
                     headers: {
@@ -890,13 +949,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const orderId = orderResult.order?.id || orderResult.orderId;
                 const orderTotal = orderResult.order?.total || orderResult.total;
-                const orderNumber = orderResult.order?.orderNumber || orderResult.orderNumber;
                 
                 if (!orderId) {
                     throw new Error('Order ID not received');
                 }
                 
-                // Step 2: Initialize Paystack payment
                 if (submitBtn) {
                     submitBtn.textContent = 'Initializing Payment...';
                 }
@@ -921,10 +978,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw new Error(paymentResult.message || 'Failed to initialize payment');
                 }
                 
-                // Step 3: Redirect to Paystack payment page
                 if (paymentResult.authorization_url) {
-                    // Redirect to Paystack
-                    window.location.href = paymentResult.authorization_url;
+                    if (submitBtn) {
+                        submitBtn.textContent = 'Redirecting to Paystack...';
+                    }
+                    setTimeout(() => {
+                        window.location.href = paymentResult.authorization_url;
+                    }, 500);
                 } else {
                     throw new Error('Payment URL not received');
                 }
@@ -933,7 +993,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('Checkout error:', error);
                 showNotification(error.message || 'Error processing checkout. Please try again.', 'error');
                 
-                // Re-enable submit button
                 const submitBtn = e.target.querySelector('button[type="submit"]');
                 if (submitBtn) {
                     submitBtn.disabled = false;
@@ -944,13 +1003,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // Modal close buttons
-    document.querySelectorAll('.close').forEach(closeBtn => {
-        closeBtn.addEventListener('click', (e) => {
+    document.querySelectorAll('.modal .close').forEach(closeBtn => {
+        closeBtn.onclick = (e) => {
             const modal = e.target.closest('.modal');
             if (modal) {
                 modal.style.display = 'none';
             }
-        });
+        };
     });
     
     // Close modal on outside click
@@ -962,35 +1021,28 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     };
-});
+}
 
-// Handle payment verification callback
+// Handle payment callback
 function handlePaymentCallback() {
     const urlParams = new URLSearchParams(window.location.search);
     const payment = urlParams.get('payment');
     const reference = urlParams.get('reference');
-    const status = urlParams.get('status');
     
     if (payment === 'verify' && reference) {
-        // Verify payment with backend
         verifyPayment(reference);
     }
     
-    // Clean up URL
-    if (payment || reference || status) {
-        const cleanUrl = window.location.pathname + window.location.hash;
+    if (payment || reference) {
+        const cleanUrl = window.location.pathname;
         window.history.replaceState({}, document.title, cleanUrl);
     }
 }
 
-// Verify payment after redirect from Paystack
 async function verifyPayment(reference) {
     try {
         const token = localStorage.getItem('token');
-        if (!token) {
-            console.error('No token found');
-            return;
-        }
+        if (!token) return;
         
         const response = await fetch(`${API_BASE}/payments/verify/${reference}`, {
             headers: {
@@ -1001,20 +1053,14 @@ async function verifyPayment(reference) {
         const result = await response.json();
         
         if (response.ok && result.success) {
-            // Payment successful
             showNotification('Payment successful! Order confirmed.');
-            
-            // Clear cart
             cart = [];
             saveCart();
             updateCartUI();
             closeCheckoutModal();
-            
-            // Reload orders and products
             await loadOrders();
             await loadProducts();
         } else {
-            // Payment failed
             showNotification(result.message || 'Payment verification failed', 'error');
         }
     } catch (error) {
@@ -1023,21 +1069,36 @@ async function verifyPayment(reference) {
     }
 }
 
-// Initialize app
-(async () => {
+// Initialize app - works even if DOMContentLoaded already fired
+function initApp() {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeEventListeners();
+            startApp();
+        });
+    } else {
+        initializeEventListeners();
+        startApp();
+    }
+}
+
+async function startApp() {
     const authenticated = await checkAuth();
     if (authenticated) {
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('dashboardContent').style.display = 'block';
+        const loadingEl = document.getElementById('loading');
+        const dashboardEl = document.getElementById('dashboardContent');
+        
+        if (loadingEl) loadingEl.style.display = 'none';
+        if (dashboardEl) dashboardEl.style.display = 'block';
+        
         await loadCategories();
         await loadProducts();
         await loadOrders();
         await loadProfile();
         updateCartUI();
-        
-        // Handle payment callback if returning from Paystack
-        if (typeof handlePaymentCallback === 'function') {
-            handlePaymentCallback();
-        }
+        handlePaymentCallback();
     }
-})();
+}
+
+// Start immediately
+initApp();
