@@ -10,9 +10,6 @@ const { connectDB } = require('./config/database');
 
 const app = express();
 
-// Connect to database
-connectDB();
-
 // Only use Helmet in production, disable in development
 if (process.env.NODE_ENV === 'production') {
   app.use(helmet({
@@ -53,10 +50,10 @@ app.use('/api/products', require('./routes/products'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/categories', require('./routes/categories'));
 app.use('/api/brands', require('./routes/brands'));
-app.use('/api/reviews', require('./routes/reviews'));
 app.use('/api/payments', require('./routes/payments'));
+app.use('/api/reviews', require('./routes/reviews'));
 
-// Health check
+// Health check (without database dependency)
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'AgriLink Ghana API is running' });
 });
@@ -101,8 +98,39 @@ app.use((err, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`AgriLink Ghana server running on port ${PORT}`);
-  console.log(`Visit http://localhost:${PORT} to view the application`);
-});
+// Connect to database with retry logic and start server
+const startServer = async () => {
+  const maxRetries = 5;
+  const retryDelay = 5000; // 5 seconds
+  
+  // Try to connect to database
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      await connectDB();
+      console.log('✅ Database connected successfully');
+      break; // Success, exit retry loop
+    } catch (error) {
+      console.error(`❌ Database connection attempt ${i + 1}/${maxRetries} failed:`, error.message);
+      
+      if (i < maxRetries - 1) {
+        console.log(`⏳ Retrying in ${retryDelay / 1000} seconds...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      } else {
+        console.error('❌ Failed to connect to database after all retries.');
+        console.error('⚠️  Starting server anyway - some features may not work without database');
+        // Don't exit - let the server start even without database
+        // This allows health checks to work
+      }
+    }
+  }
+  
+  // Start server after database connection attempt
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`✅ AgriLink Ghana server running on port ${PORT}`);
+    console.log(`🌐 Visit http://localhost:${PORT} to view the application`);
+  });
+};
+
+// Start the server
+startServer();
