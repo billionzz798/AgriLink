@@ -5,6 +5,15 @@ let orders = [];
 let categories = [];
 let cart = JSON.parse(localStorage.getItem('buyerCart')) || [];
 
+// Helper function to get product image with fallback
+function getProductImage(product) {
+  if (product.images && product.images.length > 0 && product.images[0].url) {
+    return product.images[0].url;
+  }
+  const productName = encodeURIComponent(product.name);
+  return `https://via.placeholder.com/400x400/007bff/ffffff?text=${productName}`;
+}
+
 async function checkAuth() {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -104,12 +113,14 @@ function displayProducts(productsToShow) {
         const minQty = pricing.minQuantity || 1;
         const stockClass = stock > 10 ? 'in-stock' : stock > 0 ? 'low-stock' : 'out-of-stock';
         const stockText = stock > 10 ? 'In Stock' : stock > 0 ? 'Low Stock' : 'Out of Stock';
+        const imageUrl = getProductImage(product);
+        const fallbackUrl = `https://via.placeholder.com/400x400/007bff/ffffff?text=${encodeURIComponent(product.name)}`;
         
         return `
             <div class="product-card" onclick="showProductModal('${product.id}')">
-                <img src="${product.images[0]?.url || '/images/placeholder.jpg'}" 
+                <img src="${imageUrl}" 
                      alt="${product.name}" 
-                     onerror="this.src='/images/placeholder.jpg'">
+                     onerror="this.onerror=null; this.src='${fallbackUrl}';">
                 <h4>${product.name}</h4>
                 <p class="product-price">B2B: ₵${pricing.price}/${pricing.unit}</p>
                 <p style="color: #666; font-size: 0.85rem;">Min Order: ${minQty} ${pricing.unit}</p>
@@ -129,14 +140,16 @@ async function showProductModal(productId) {
     const pricing = product.pricing.b2b;
     const stock = product.inventory.availableQuantity;
     const minQty = pricing.minQuantity || 1;
+    const imageUrl = getProductImage(product);
+    const fallbackUrl = `https://via.placeholder.com/400x400/007bff/ffffff?text=${encodeURIComponent(product.name)}`;
     
     body.innerHTML = `
         <div class="product-modal-content">
             <div>
-                <img src="${product.images[0]?.url || '/images/placeholder.jpg'}" 
+                <img src="${imageUrl}" 
                      alt="${product.name}" 
                      class="product-modal-image"
-                     onerror="this.src='/images/placeholder.jpg'">
+                     onerror="this.onerror=null; this.src='${fallbackUrl}';">
             </div>
             <div class="product-modal-details">
                 <h2>${product.name}</h2>
@@ -202,6 +215,7 @@ function addToCart(productId, price, unit, maxStock, minQty) {
     if (!product) return;
     
     const existingItem = cart.find(item => item.productId === productId);
+    const productImage = getProductImage(product);
     
     if (existingItem) {
         if (existingItem.quantity + quantity > maxStock) {
@@ -213,7 +227,7 @@ function addToCart(productId, price, unit, maxStock, minQty) {
         cart.push({
             productId: productId,
             productName: product.name,
-            productImage: product.images[0]?.url || '/images/placeholder.jpg',
+            productImage: productImage,
             price: price,
             unit: unit,
             quantity: quantity,
@@ -275,12 +289,17 @@ function updateCartUI() {
     document.getElementById('checkoutBtn').disabled = false;
     
     let total = 0;
+    const fallbackImage = 'https://via.placeholder.com/80x80/007bff/ffffff?text=Product';
+    
     cartItems.innerHTML = cart.map(item => {
         const itemTotal = item.price * item.quantity;
         total += itemTotal;
         return `
             <div class="cart-item">
-                <img src="${item.productImage}" alt="${item.productName}" class="cart-item-image" onerror="this.src='/images/placeholder.jpg'">
+                <img src="${item.productImage}" 
+                     alt="${item.productName}" 
+                     class="cart-item-image" 
+                     onerror="this.onerror=null; this.src='${fallbackImage}';">
                 <div class="cart-item-details">
                     <div class="cart-item-name">${item.productName}</div>
                     <div class="cart-item-price">₵${item.price}/${item.unit} (Min: ${item.minQty})</div>

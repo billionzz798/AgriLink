@@ -4,6 +4,15 @@ let myProducts = [];
 let orders = [];
 let categories = [];
 
+// Helper function to get product image with fallback
+function getProductImage(product) {
+  if (product.images && product.images.length > 0 && product.images[0].url) {
+    return product.images[0].url;
+  }
+  const productName = encodeURIComponent(product.name);
+  return `https://via.placeholder.com/400x400/28a745/ffffff?text=${productName}`;
+}
+
 async function checkAuth() {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -101,12 +110,14 @@ function displayProducts(productsToShow) {
         const b2cPrice = product.pricing?.b2c?.price || 0;
         const b2bPrice = product.pricing?.b2b?.price || 0;
         const stock = product.inventory?.availableQuantity || 0;
+        const imageUrl = getProductImage(product);
+        const fallbackUrl = `https://via.placeholder.com/400x400/28a745/ffffff?text=${encodeURIComponent(product.name)}`;
         
         return `
             <div class="product-card">
-                <img src="${product.images[0]?.url || '/images/placeholder.jpg'}" 
+                <img src="${imageUrl}" 
                      alt="${product.name}" 
-                     onerror="this.src='/images/placeholder.jpg'">
+                     onerror="this.onerror=null; this.src='${fallbackUrl}';">
                 <h4>${product.name}</h4>
                 <p class="product-price">
                     B2B: ₵${b2bPrice} | B2C: ₵${b2cPrice}

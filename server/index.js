@@ -20,7 +20,7 @@ if (process.env.NODE_ENV === 'production') {
       directives: {
         defaultSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
-        scriptSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "https://js.paystack.co"],
         imgSrc: ["'self'", "data:", "https:"],
       },
     },
@@ -54,6 +54,7 @@ app.use('/api/orders', require('./routes/orders'));
 app.use('/api/categories', require('./routes/categories'));
 app.use('/api/brands', require('./routes/brands'));
 app.use('/api/reviews', require('./routes/reviews'));
+app.use('/api/payments', require('./routes/payments'));
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -100,7 +101,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`AgriLink Ghana server running on port ${PORT}`);
   console.log(`Visit http://localhost:${PORT} to view the application`);

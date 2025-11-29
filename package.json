@@ -8,7 +8,13 @@
     "dev": "nodemon server/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["agriculture", "e-commerce", "ghana", "b2b", "b2c"],
+  "keywords": [
+    "agriculture",
+    "e-commerce",
+    "ghana",
+    "b2b",
+    "b2c"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -23,6 +29,7 @@
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
     "nodemailer": "^7.0.10",
+    "paystack": "^2.0.1",
     "pg": "^8.16.3",
     "pg-hstore": "^2.3.4",
     "sequelize": "^6.37.7"

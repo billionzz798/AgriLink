@@ -5,6 +5,15 @@ let orders = [];
 let categories = [];
 let cart = JSON.parse(localStorage.getItem('cart')) || [];
 
+// Helper function to get product image with fallback
+function getProductImage(product) {
+  if (product.images && product.images.length > 0 && product.images[0].url) {
+    return product.images[0].url;
+  }
+  const productName = encodeURIComponent(product.name);
+  return `https://via.placeholder.com/400x400/2c5530/ffffff?text=${productName}`;
+}
+
 async function checkAuth() {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -30,6 +39,7 @@ async function checkAuth() {
             return false;
         }
     } catch (error) {
+        console.error('Auth error:', error);
         window.location.href = '/login';
         return false;
     }
@@ -53,12 +63,22 @@ async function loadCategories() {
 
 async function loadProducts() {
     try {
-        const response = await fetch(`${API_BASE}/products`);
+        // Load products with category and farmer relationships
+        const response = await fetch(`${API_BASE}/products?include=category,farmer`);
         const data = await response.json();
         products = data.products || [];
         filterAndDisplayProducts();
     } catch (error) {
         console.error('Error loading products:', error);
+        // Try without relationships if that fails
+        try {
+            const response = await fetch(`${API_BASE}/products`);
+            const data = await response.json();
+            products = data.products || [];
+            filterAndDisplayProducts();
+        } catch (err) {
+            console.error('Error loading products (fallback):', err);
+        }
     }
 }
 
@@ -83,12 +103,12 @@ function filterAndDisplayProducts() {
     filtered.sort((a, b) => {
         switch(sortFilter) {
             case 'price-low':
-                const priceA = currentUser.role === 'institutional_buyer' ? a.pricing.b2b.price : a.pricing.b2c.price;
-                const priceB = currentUser.role === 'institutional_buyer' ? b.pricing.b2b.price : b.pricing.b2c.price;
+                const priceA = currentUser.role === 'institutional_buyer' ? (a.pricing?.b2b?.price || 0) : (a.pricing?.b2c?.price || 0);
+                const priceB = currentUser.role === 'institutional_buyer' ? (b.pricing?.b2b?.price || 0) : (b.pricing?.b2c?.price || 0);
                 return priceA - priceB;
             case 'price-high':
-                const priceA2 = currentUser.role === 'institutional_buyer' ? a.pricing.b2b.price : a.pricing.b2c.price;
-                const priceB2 = currentUser.role === 'institutional_buyer' ? b.pricing.b2b.price : b.pricing.b2c.price;
+                const priceA2 = currentUser.role === 'institutional_buyer' ? (a.pricing?.b2b?.price || 0) : (a.pricing?.b2c?.price || 0);
+                const priceB2 = currentUser.role === 'institutional_buyer' ? (b.pricing?.b2b?.price || 0) : (b.pricing?.b2c?.price || 0);
                 return priceB2 - priceA2;
             case 'name':
                 return a.name.localeCompare(b.name);
@@ -104,18 +124,20 @@ function filterAndDisplayProducts() {
 function displayProducts(productsToShow) {
     const grid = document.getElementById('productsGrid');
     grid.innerHTML = productsToShow.map(product => {
-        const pricing = currentUser.role === 'institutional_buyer' ? product.pricing.b2b : product.pricing.b2c;
-        const stock = product.inventory.availableQuantity;
+        const pricing = currentUser.role === 'institutional_buyer' ? (product.pricing?.b2b || {}) : (product.pricing?.b2c || {});
+        const stock = product.inventory?.availableQuantity || 0;
         const stockClass = stock > 10 ? 'in-stock' : stock > 0 ? 'low-stock' : 'out-of-stock';
         const stockText = stock > 10 ? 'In Stock' : stock > 0 ? 'Low Stock' : 'Out of Stock';
+        const imageUrl = getProductImage(product);
+        const fallbackUrl = `https://via.placeholder.com/400x400/2c5530/ffffff?text=${encodeURIComponent(product.name)}`;
         
         return `
-            <div class="product-card" onclick="showProductModal('${product.id}')">
-                <img src="${product.images[0]?.url || '/images/placeholder.jpg'}" 
+            <div class="product-card" onclick="showProductModal('${product.id}')" style="cursor: pointer;">
+                <img src="${imageUrl}" 
                      alt="${product.name}" 
-                     onerror="this.src='/images/placeholder.jpg'">
+                     onerror="this.onerror=null; this.src='${fallbackUrl}';">
                 <h4>${product.name}</h4>
-                <p class="product-price">₵${pricing.price}/${pricing.unit}</p>
+                <p class="product-price">₵${pricing.price || 0}/${pricing.unit || 'kg'}</p>
                 <p class="product-stock ${stockClass}">${stockText} (${stock} available)</p>
                 ${product.category ? `<p style="color: #666; font-size: 0.85rem;">${product.category.name}</p>` : ''}
             </div>
@@ -124,43 +146,62 @@ function displayProducts(productsToShow) {
 }
 
 async function showProductModal(productId) {
-    const product = products.find(p => p.id === productId);
-    if (!product) return;
+    let product = products.find(p => p.id === productId);
+    
+    // If product not found or missing details, fetch it
+    if (!product || !product.pricing) {
+        try {
+            const response = await fetch(`${API_BASE}/products/${productId}`);
+            const data = await response.json();
+            product = data.product || data;
+        } catch (error) {
+            console.error('Error fetching product:', error);
+            alert('Error loading product details');
+            return;
+        }
+    }
+    
+    if (!product) {
+        alert('Product not found');
+        return;
+    }
 
     const modal = document.getElementById('productModal');
     const body = document.getElementById('productModalBody');
-    const pricing = currentUser.role === 'institutional_buyer' ? product.pricing.b2b : product.pricing.b2c;
-    const stock = product.inventory.availableQuantity;
-    const minQty = currentUser.role === 'institutional_buyer' ? pricing.minQuantity : 1;
+    const pricing = currentUser.role === 'institutional_buyer' ? (product.pricing?.b2b || {}) : (product.pricing?.b2c || {});
+    const stock = product.inventory?.availableQuantity || 0;
+    const minQty = currentUser.role === 'institutional_buyer' ? (pricing.minQuantity || 1) : 1;
+    const imageUrl = getProductImage(product);
+    const fallbackUrl = `https://via.placeholder.com/400x400/2c5530/ffffff?text=${encodeURIComponent(product.name)}`;
     
     body.innerHTML = `
         <div class="product-modal-content">
             <div>
-                <img src="${product.images[0]?.url || '/images/placeholder.jpg'}" 
+                <img src="${imageUrl}" 
                      alt="${product.name}" 
                      class="product-modal-image"
-                     onerror="this.src='/images/placeholder.jpg'">
+                     onerror="this.onerror=null; this.src='${fallbackUrl}';">
             </div>
             <div class="product-modal-details">
                 <h2>${product.name}</h2>
-                <p class="product-modal-price">₵${pricing.price}/${pricing.unit}</p>
-                <p>${product.description}</p>
+                <p class="product-modal-price">₵${pricing.price || 0}/${pricing.unit || 'kg'}</p>
+                <p>${product.description || 'No description available'}</p>
                 <div style="margin: 1.5rem 0;">
-                    <p><strong>Available Stock:</strong> ${stock} ${pricing.unit}</p>
-                    ${product.category ? `<p><strong>Category:</strong> ${product.category.name}</p>` : ''}
-                    ${product.farmer ? `<p><strong>Farmer:</strong> ${product.farmer.name}</p>` : ''}
+                    <p><strong>Available Stock:</strong> ${stock} ${pricing.unit || 'kg'}</p>
+                    ${product.category ? `<p><strong>Category:</strong> ${product.category.name || product.categoryId}</p>` : ''}
+                    ${product.farmer ? `<p><strong>Farmer:</strong> ${product.farmer.name || 'N/A'}</p>` : ''}
                 </div>
                 <div class="form-group">
                     <label><strong>Quantity:</strong></label>
                     <div style="display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem;">
-                        <button class="quantity-btn" onclick="decreaseQuantity()">-</button>
+                        <button type="button" class="quantity-btn" onclick="decreaseQuantity(${minQty})">-</button>
                         <input type="number" id="orderQuantity" min="${minQty}" max="${stock}" value="${minQty}" class="quantity-input">
-                        <button class="quantity-btn" onclick="increaseQuantity(${stock})">+</button>
+                        <button type="button" class="quantity-btn" onclick="increaseQuantity(${stock})">+</button>
                     </div>
                     ${currentUser.role === 'institutional_buyer' && pricing.minQuantity > 1 ? 
-                        `<p style="color: #666; font-size: 0.85rem; margin-top: 0.5rem;">Minimum order: ${pricing.minQuantity} ${pricing.unit}</p>` : ''}
+                        `<p style="color: #666; font-size: 0.85rem; margin-top: 0.5rem;">Minimum order: ${pricing.minQuantity} ${pricing.unit || 'kg'}</p>` : ''}
                 </div>
-                <button onclick="addToCart('${product.id}', ${pricing.price}, '${pricing.unit}', ${stock}, ${minQty})" 
+                <button onclick="addToCart('${product.id}', ${pricing.price || 0}, '${pricing.unit || 'kg'}', ${stock}, ${minQty})" 
                         class="btn btn-primary btn-block" 
                         ${stock === 0 ? 'disabled' : ''}>
                     ${stock === 0 ? 'Out of Stock' : 'Add to Cart'}
@@ -174,23 +215,26 @@ async function showProductModal(productId) {
 
 function increaseQuantity(max) {
     const input = document.getElementById('orderQuantity');
-    const current = parseInt(input.value);
+    if (!input) return;
+    const current = parseInt(input.value) || 1;
     if (current < max) {
         input.value = current + 1;
     }
 }
 
-function decreaseQuantity() {
+function decreaseQuantity(min) {
     const input = document.getElementById('orderQuantity');
-    const current = parseInt(input.value);
-    const min = parseInt(input.min);
-    if (current > min) {
+    if (!input) return;
+    const current = parseInt(input.value) || 1;
+    const minValue = parseInt(input.min) || min;
+    if (current > minValue) {
         input.value = current - 1;
     }
 }
 
 function addToCart(productId, price, unit, maxStock, minQty) {
-    const quantity = parseInt(document.getElementById('orderQuantity').value) || minQty;
+    const quantityInput = document.getElementById('orderQuantity');
+    const quantity = quantityInput ? parseInt(quantityInput.value) || minQty : minQty;
     
     if (quantity < minQty) {
         alert(`Minimum quantity is ${minQty} ${unit}`);
@@ -203,9 +247,13 @@ function addToCart(productId, price, unit, maxStock, minQty) {
     }
     
     const product = products.find(p => p.id === productId);
-    if (!product) return;
+    if (!product) {
+        alert('Product not found');
+        return;
+    }
     
     const existingItem = cart.find(item => item.productId === productId);
+    const productImage = getProductImage(product);
     
     if (existingItem) {
         if (existingItem.quantity + quantity > maxStock) {
@@ -217,7 +265,7 @@ function addToCart(productId, price, unit, maxStock, minQty) {
         cart.push({
             productId: productId,
             productName: product.name,
-            productImage: product.images[0]?.url || '/images/placeholder.jpg',
+            productImage: productImage,
             price: price,
             unit: unit,
             quantity: quantity,
@@ -236,6 +284,7 @@ function removeFromCart(productId) {
     cart = cart.filter(item => item.productId !== productId);
     saveCart();
     updateCartUI();
+    showNotification('Item removed from cart');
 }
 
 function updateCartQuantity(productId, change) {
@@ -265,34 +314,43 @@ function saveCart() {
 
 function updateCartUI() {
     const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-    document.getElementById('cartCount').textContent = cartCount;
-    document.getElementById('cartCount').style.display = cartCount > 0 ? 'inline-block' : 'none';
+    const cartCountEl = document.getElementById('cartCount');
+    if (cartCountEl) {
+        cartCountEl.textContent = cartCount;
+        cartCountEl.style.display = cartCount > 0 ? 'inline-block' : 'none';
+    }
     
     const cartItems = document.getElementById('cartItems');
+    const checkoutBtn = document.getElementById('checkoutBtn');
     
     if (cart.length === 0) {
         cartItems.innerHTML = '<p class="empty-cart">Your cart is empty</p>';
-        document.getElementById('checkoutBtn').disabled = true;
+        if (checkoutBtn) checkoutBtn.disabled = true;
         return;
     }
     
-    document.getElementById('checkoutBtn').disabled = false;
+    if (checkoutBtn) checkoutBtn.disabled = false;
     
     let total = 0;
+    const fallbackImage = 'https://via.placeholder.com/80x80/2c5530/ffffff?text=Product';
+    
     cartItems.innerHTML = cart.map(item => {
         const itemTotal = item.price * item.quantity;
         total += itemTotal;
         return `
             <div class="cart-item">
-                <img src="${item.productImage}" alt="${item.productName}" class="cart-item-image" onerror="this.src='/images/placeholder.jpg'">
+                <img src="${item.productImage}" 
+                     alt="${item.productName}" 
+                     class="cart-item-image" 
+                     onerror="this.onerror=null; this.src='${fallbackImage}';">
                 <div class="cart-item-details">
                     <div class="cart-item-name">${item.productName}</div>
                     <div class="cart-item-price">₵${item.price}/${item.unit}</div>
                     <div class="cart-item-actions">
-                        <button class="quantity-btn" onclick="updateCartQuantity('${item.productId}', -1)">-</button>
+                        <button type="button" class="quantity-btn" onclick="updateCartQuantity('${item.productId}', -1)">-</button>
                         <input type="number" value="${item.quantity}" class="quantity-input" readonly>
-                        <button class="quantity-btn" onclick="updateCartQuantity('${item.productId}', 1)">+</button>
-                        <button class="remove-item-btn" onclick="removeFromCart('${item.productId}')">Remove</button>
+                        <button type="button" class="quantity-btn" onclick="updateCartQuantity('${item.productId}', 1)">+</button>
+                        <button type="button" class="remove-item-btn" onclick="removeFromCart('${item.productId}')">Remove</button>
                     </div>
                 </div>
                 <div style="font-weight: 600; color: #2c5530;">₵${itemTotal.toFixed(2)}</div>
@@ -300,24 +358,41 @@ function updateCartUI() {
         `;
     }).join('');
     
-    document.getElementById('cartTotal').textContent = `₵${total.toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const cartTotalEl = document.getElementById('cartTotal');
+    if (cartTotalEl) {
+        cartTotalEl.textContent = `₵${total.toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
 }
 
 function openCart() {
-    document.getElementById('cartSidebar').classList.add('open');
-    document.getElementById('cartOverlay').classList.add('show');
+    const sidebar = document.getElementById('cartSidebar');
+    const overlay = document.getElementById('cartOverlay');
+    if (sidebar) sidebar.classList.add('open');
+    if (overlay) overlay.classList.add('show');
     updateCartUI();
 }
 
 function closeCart() {
-    document.getElementById('cartSidebar').classList.remove('open');
-    document.getElementById('cartOverlay').classList.remove('show');
+    const sidebar = document.getElementById('cartSidebar');
+    const overlay = document.getElementById('cartOverlay');
+    if (sidebar) sidebar.classList.remove('open');
+    if (overlay) overlay.classList.remove('show');
 }
 
 function checkout() {
-    if (cart.length === 0) return;
+    if (cart.length === 0) {
+        alert('Your cart is empty');
+        return;
+    }
     
     const checkoutItems = document.getElementById('checkoutItems');
+    const checkoutTotal = document.getElementById('checkoutTotal');
+    
+    if (!checkoutItems || !checkoutTotal) {
+        alert('Checkout form not found');
+        return;
+    }
+    
     let total = 0;
     
     checkoutItems.innerHTML = cart.map(item => {
@@ -331,34 +406,51 @@ function checkout() {
         `;
     }).join('');
     
-    document.getElementById('checkoutTotal').textContent = `₵${total.toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    checkoutTotal.textContent = `₵${total.toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     
-    if (currentUser.address) {
-        document.getElementById('deliveryStreet').value = currentUser.address.street || '';
-        document.getElementById('deliveryCity').value = currentUser.address.city || '';
-        document.getElementById('deliveryRegion').value = currentUser.address.region || '';
-        document.getElementById('deliveryPostalCode').value = currentUser.address.postalCode || '';
+    // Pre-fill address if available
+    if (currentUser && currentUser.address) {
+        const streetEl = document.getElementById('deliveryStreet');
+        const cityEl = document.getElementById('deliveryCity');
+        const regionEl = document.getElementById('deliveryRegion');
+        const postalEl = document.getElementById('deliveryPostalCode');
+        
+        if (streetEl) streetEl.value = currentUser.address.street || '';
+        if (cityEl) cityEl.value = currentUser.address.city || '';
+        if (regionEl) regionEl.value = currentUser.address.region || '';
+        if (postalEl) postalEl.value = currentUser.address.postalCode || '';
     }
     
-    document.getElementById('checkoutModal').style.display = 'block';
-    closeCart();
+    const checkoutModal = document.getElementById('checkoutModal');
+    if (checkoutModal) {
+        checkoutModal.style.display = 'block';
+        closeCart();
+    }
 }
 
 function closeCheckoutModal() {
-    document.getElementById('checkoutModal').style.display = 'none';
+    const modal = document.getElementById('checkoutModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
 }
 
 async function loadOrders() {
     try {
         const token = localStorage.getItem('token');
+        if (!token) return;
+        
         const response = await fetch(`${API_BASE}/orders`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
         });
-        const data = await response.json();
-        orders = data.orders || [];
-        displayOrders(orders);
+        
+        if (response.ok) {
+            const data = await response.json();
+            orders = data.orders || [];
+            displayOrders(orders);
+        }
     } catch (error) {
         console.error('Error loading orders:', error);
     }
@@ -369,86 +461,95 @@ function displayOrders(ordersToShow) {
     
     if (ordersToShow.length === 0) {
         document.getElementById('noOrders').style.display = 'block';
-        list.innerHTML = '';
+        if (list) list.innerHTML = '';
         return;
     }
     
     document.getElementById('noOrders').style.display = 'none';
     
-    list.innerHTML = ordersToShow.map(order => {
-        const statusClass = order.status.toLowerCase().replace('_', '-');
-        return `
-            <div class="order-card">
-                <div class="order-card-header">
-                    <div>
-                        <h4>Order #${order.orderNumber}</h4>
-                        <p style="color: #666; margin: 0.5rem 0 0 0;">${new Date(order.createdAt).toLocaleString()}</p>
+    if (list) {
+        list.innerHTML = ordersToShow.map(order => {
+            const statusClass = order.status.toLowerCase().replace('_', '-');
+            return `
+                <div class="order-card">
+                    <div class="order-card-header">
+                        <div>
+                            <h4>Order #${order.orderNumber || order.id}</h4>
+                            <p style="color: #666; margin: 0.5rem 0 0 0;">${new Date(order.createdAt).toLocaleString()}</p>
+                        </div>
+                        <span class="order-status ${statusClass}">${order.status}</span>
                     </div>
-                    <span class="order-status ${statusClass}">${order.status}</span>
+                    <div class="order-card-body">
+                        <div>
+                            <strong>Items:</strong>
+                            ${(order.items || []).map(item => `
+                                <div class="order-item">
+                                    <span>${item.productName || 'Product'} x ${item.quantity}</span>
+                                    <span>₵${((item.price || 0) * (item.quantity || 0)).toFixed(2)}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div>
+                            <p><strong>Total: ₵${parseFloat(order.total || 0).toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></p>
+                            ${order.deliveryAddress ? `
+                                <p><strong>Delivery Address:</strong></p>
+                                <p>${order.deliveryAddress.street || ''}<br>
+                                ${order.deliveryAddress.city || ''}, ${order.deliveryAddress.region || ''}</p>
+                            ` : ''}
+                        </div>
+                    </div>
                 </div>
-                <div class="order-card-body">
-                    <div>
-                        <strong>Items:</strong>
-                        ${order.items.map(item => `
-                            <div class="order-item">
-                                <span>${item.productName || 'Product'} x ${item.quantity}</span>
-                                <span>₵${(item.price * item.quantity).toFixed(2)}</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                    <div>
-                        <p><strong>Total:</strong> ₵${parseFloat(order.total).toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                        ${order.deliveryAddress ? `
-                            <p><strong>Delivery Address:</strong></p>
-                            <p>${order.deliveryAddress.street || ''}<br>
-                            ${order.deliveryAddress.city || ''}, ${order.deliveryAddress.region || ''}</p>
-                        ` : ''}
-                    </div>
-                </div>
-            </div>
-        `;
-    }).join('');
+            `;
+        }).join('');
+    }
 }
 
 async function loadProfile() {
     try {
         const token = localStorage.getItem('token');
+        if (!token) return;
+        
         const response = await fetch(`${API_BASE}/auth/profile`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
         });
-        const user = await response.json();
         
-        const profileInfo = document.getElementById('profileInfo');
-        profileInfo.innerHTML = `
-            <div class="profile-field">
-                <span class="profile-field-label">Name:</span>
-                <span class="profile-field-value">${user.name}</span>
-            </div>
-            <div class="profile-field">
-                <span class="profile-field-label">Email:</span>
-                <span class="profile-field-value">${user.email}</span>
-            </div>
-            <div class="profile-field">
-                <span class="profile-field-label">Phone:</span>
-                <span class="profile-field-value">${user.phone || 'Not provided'}</span>
-            </div>
-            <div class="profile-field">
-                <span class="profile-field-label">Role:</span>
-                <span class="profile-field-value">${user.role.replace('_', ' ')}</span>
-            </div>
-            ${user.address ? `
-                <div class="profile-field">
-                    <span class="profile-field-label">Address:</span>
-                    <span class="profile-field-value">
-                        ${user.address.street || ''}<br>
-                        ${user.address.city || ''}, ${user.address.region || ''}<br>
-                        ${user.address.postalCode || ''}
-                    </span>
-                </div>
-            ` : ''}
-        `;
+        if (response.ok) {
+            const user = await response.json();
+            const profileInfo = document.getElementById('profileInfo');
+            
+            if (profileInfo) {
+                profileInfo.innerHTML = `
+                    <div class="profile-field">
+                        <span class="profile-field-label">Name:</span>
+                        <span class="profile-field-value">${user.name}</span>
+                    </div>
+                    <div class="profile-field">
+                        <span class="profile-field-label">Email:</span>
+                        <span class="profile-field-value">${user.email}</span>
+                    </div>
+                    <div class="profile-field">
+                        <span class="profile-field-label">Phone:</span>
+                        <span class="profile-field-value">${user.phone || 'Not provided'}</span>
+                    </div>
+                    <div class="profile-field">
+                        <span class="profile-field-label">Role:</span>
+                        <span class="profile-field-value">${user.role.replace('_', ' ')}</span>
+                    </div>
+                    ${user.address ? `
+                        <div class="profile-field">
+                            <span class="profile-field-label">Address:</span>
+                            <span class="profile-field-value">
+                                ${user.address.street || ''}<br>
+                                ${user.address.city || ''}, ${user.address.region || ''}<br>
+                                ${user.address.postalCode || ''}
+                            </span>
+                        </div>
+                    ` : ''}
+                `;
+            }
+        }
     } catch (error) {
         console.error('Error loading profile:', error);
     }
@@ -477,87 +578,275 @@ function showNotification(message) {
     }, 3000);
 }
 
-document.getElementById('logoutBtn').addEventListener('click', () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('cart');
-    window.location.href = '/login';
-});
+// Event Listeners
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize cart UI on page load
+    updateCartUI();
+    
+    // Logout button
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('cart');
+            window.location.href = '/login';
+        });
+    }
+    
+    // Cart button
+    const cartBtn = document.getElementById('cartBtn');
+    if (cartBtn) {
+        cartBtn.addEventListener('click', openCart);
+    }
+    
+    // Search and filters
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', filterAndDisplayProducts);
+    }
+    
+    const categoryFilter = document.getElementById('categoryFilter');
+    if (categoryFilter) {
+        categoryFilter.addEventListener('change', filterAndDisplayProducts);
+    }
+    
+    const marketplaceFilter = document.getElementById('marketplaceFilter');
+    if (marketplaceFilter) {
+        marketplaceFilter.addEventListener('change', filterAndDisplayProducts);
+    }
+    
+    const sortFilter = document.getElementById('sortFilter');
+    if (sortFilter) {
+        sortFilter.addEventListener('change', filterAndDisplayProducts);
+    }
+    
+   // Updated checkout form handler with Paystack integration
+const checkoutForm = document.getElementById('checkoutForm');
+if (checkoutForm) {
+    checkoutForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        if (cart.length === 0) {
+            alert('Your cart is empty');
+            return;
+        }
+        
+        const formData = new FormData(e.target);
+        const deliveryAddress = {
+            street: formData.get('street') || '',
+            city: formData.get('city') || '',
+            region: formData.get('region') || '',
+            postalCode: formData.get('postalCode') || ''
+        };
+        
+        // Validate required fields
+        if (!deliveryAddress.street || !deliveryAddress.city || !deliveryAddress.region) {
+            alert('Please fill in all required address fields');
+            return;
+        }
+        
+        const items = cart.map(item => ({
+            product: item.productId,
+            quantity: item.quantity
+        }));
+        
+        const notes = document.getElementById('orderNotes')?.value || '';
+        
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Please login again');
+                window.location.href = '/login';
+                return;
+            }
+            
+            // Disable submit button
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Creating Order...';
+            }
+            
+            // Step 1: Create order first
+            const orderResponse = await fetch(`${API_BASE}/orders`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    items,
+                    deliveryAddress,
+                    notes
+                })
+            });
+            
+            const orderResult = await orderResponse.json();
+            
+            if (!orderResponse.ok) {
+                throw new Error(orderResult.message || orderResult.errors?.[0]?.msg || 'Failed to create order');
+            }
+            
+            const orderId = orderResult.order?.id || orderResult.orderId;
+            const orderTotal = orderResult.order?.total || orderResult.total;
+            const orderNumber = orderResult.order?.orderNumber || orderResult.orderNumber;
+            
+            if (!orderId) {
+                throw new Error('Order ID not received');
+            }
+            
+            // Step 2: Initialize Paystack payment
+            if (submitBtn) {
+                submitBtn.textContent = 'Initializing Payment...';
+            }
+            
+            const paymentResponse = await fetch(`${API_BASE}/payments/initialize`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    orderId: orderId,
+                    email: currentUser.email,
+                    amount: parseFloat(orderTotal).toFixed(2),
+                    currency: 'GHS'
+                })
+            });
+            
+            const paymentResult = await paymentResponse.json();
+            
+            if (!paymentResponse.ok || !paymentResult.success) {
+                throw new Error(paymentResult.message || 'Failed to initialize payment');
+            }
+            
+            // Step 3: Redirect to Paystack payment page
+            if (paymentResult.authorization_url) {
+                // Redirect to Paystack
+                window.location.href = paymentResult.authorization_url;
+            } else {
+                throw new Error('Payment URL not received');
+            }
+            
+        } catch (error) {
+            console.error('Checkout error:', error);
+            alert(error.message || 'Error processing checkout. Please try again.');
+            
+            // Re-enable submit button
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Place Order';
+            }
+        }
+    });
+}
 
-document.getElementById('cartBtn').addEventListener('click', openCart);
+// Handle payment verification callback
+function handlePaymentCallback() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const payment = urlParams.get('payment');
+    const reference = urlParams.get('reference');
+    const status = urlParams.get('status');
+    
+    if (payment === 'verify' && reference) {
+        // Verify payment with backend
+        verifyPayment(reference);
+    }
+    
+    // Clean up URL
+    if (payment || reference || status) {
+        const cleanUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, document.title, cleanUrl);
+    }
+}
 
-document.getElementById('searchInput').addEventListener('input', filterAndDisplayProducts);
-document.getElementById('categoryFilter').addEventListener('change', filterAndDisplayProducts);
-document.getElementById('marketplaceFilter').addEventListener('change', filterAndDisplayProducts);
-document.getElementById('sortFilter').addEventListener('change', filterAndDisplayProducts);
-
-document.getElementById('checkoutForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const formData = new FormData(e.target);
-    const deliveryAddress = {
-        street: formData.get('street'),
-        city: formData.get('city'),
-        region: formData.get('region'),
-        postalCode: formData.get('postalCode')
-    };
-    
-    const items = cart.map(item => ({
-        product: item.productId,
-        quantity: item.quantity
-    }));
-    
-    const notes = document.getElementById('orderNotes').value;
-    
+// Verify payment after redirect from Paystack
+async function verifyPayment(reference) {
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE}/orders`, {
-            method: 'POST',
+        if (!token) {
+            console.error('No token found');
+            return;
+        }
+        
+        const response = await fetch(`${API_BASE}/payments/verify/${reference}`, {
             headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                items,
-                deliveryAddress,
-                notes
-            })
+                'Authorization': `Bearer ${token}`
+            }
         });
         
         const result = await response.json();
         
-        if (response.ok) {
+        if (response.ok && result.success) {
+            // Payment successful
+            showNotification('Payment successful! Order confirmed.');
+            
+            // Clear cart
             cart = [];
             saveCart();
             updateCartUI();
             closeCheckoutModal();
-            showNotification('Order placed successfully!');
+            
+            // Reload orders and products
             await loadOrders();
             await loadProducts();
         } else {
-            alert(result.message || 'Failed to place order');
+            // Payment failed
+            showNotification(result.message || 'Payment verification failed', 'error');
         }
     } catch (error) {
-        console.error('Error placing order:', error);
-        alert('Error placing order. Please try again.');
+        console.error('Payment verification error:', error);
+        showNotification('Error verifying payment. Please check your orders.', 'error');
     }
+}
+
+// Update showNotification to support error type
+function showNotification(message, type = 'success') {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'error' ? '#dc3545' : '#28a745'};
+        color: white;
+        padding: 1rem 2rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        z-index: 3000;
+        animation: slideIn 0.3s;
+    `;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s';
+        setTimeout(() => notification.remove(), 300);
+    }, 5000);
+}
+    // Modal close buttons
+    document.querySelectorAll('.close').forEach(closeBtn => {
+        closeBtn.addEventListener('click', (e) => {
+            const modal = e.target.closest('.modal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        });
+    });
+    
+    // Close modal on outside click
+    window.onclick = (event) => {
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+    };
 });
 
-document.querySelectorAll('.close').forEach(closeBtn => {
-    closeBtn.addEventListener('click', (e) => {
-        e.target.closest('.modal').style.display = 'none';
-    });
-});
-
-window.onclick = (event) => {
-    const modals = document.querySelectorAll('.modal');
-    modals.forEach(modal => {
-        if (event.target === modal) {
-            modal.style.display = 'none';
-        }
-    });
-};
-
+// Initialize app
 (async () => {
     const authenticated = await checkAuth();
     if (authenticated) {
@@ -568,5 +857,8 @@ window.onclick = (event) => {
         await loadOrders();
         await loadProfile();
         updateCartUI();
+         // Handle payment callback if returning from Paystack
+         handlePaymentCallback();
     }
 })();
+

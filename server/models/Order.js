@@ -2,6 +2,13 @@ const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 const User = require('./User');
 
+// Helper function to generate order number
+function generateOrderNumber() {
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substr(2, 9).toUpperCase();
+  return `AGR-${timestamp}-${random}`;
+}
+
 const Order = sequelize.define('Order', {
   id: {
     type: DataTypes.UUID,
@@ -11,7 +18,8 @@ const Order = sequelize.define('Order', {
   orderNumber: {
     type: DataTypes.STRING,
     unique: true,
-    allowNull: false
+    allowNull: false,
+    defaultValue: () => generateOrderNumber()
   },
   buyerId: {
     type: DataTypes.UUID,
@@ -46,8 +54,8 @@ const Order = sequelize.define('Order', {
     allowNull: false
   },
   status: {
-    type: DataTypes.ENUM('pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'),
-    defaultValue: 'pending'
+    type: DataTypes.ENUM('pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'payment_pending', 'payment_failed'),
+    defaultValue: 'payment_pending'
   },
   deliveryAddress: {
     type: DataTypes.JSONB,
@@ -56,6 +64,17 @@ const Order = sequelize.define('Order', {
   notes: {
     type: DataTypes.TEXT,
     defaultValue: null
+  },
+  payment: {
+    type: DataTypes.JSONB,
+    defaultValue: {
+      method: null,
+      status: 'pending',
+      reference: null,
+      amount: null,
+      paidAt: null,
+      currency: 'GHS'
+    }
   }
 }, {
   tableName: 'orders',
@@ -63,7 +82,12 @@ const Order = sequelize.define('Order', {
   hooks: {
     beforeCreate: (order) => {
       if (!order.orderNumber) {
-        order.orderNumber = `AGR-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+        order.orderNumber = generateOrderNumber();
+      }
+    },
+    beforeValidate: (order) => {
+      if (!order.orderNumber) {
+        order.orderNumber = generateOrderNumber();
       }
     }
   }
