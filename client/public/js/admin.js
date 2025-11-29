@@ -49,7 +49,8 @@ async function checkAuth() {
                 return false;
             }
             currentUser = data.user;
-            document.getElementById('adminName').textContent = currentUser.name;
+            const adminNameEl = document.getElementById('adminName');
+            if (adminNameEl) adminNameEl.textContent = currentUser.name;
             return true;
         } else {
             window.location.href = '/login';
@@ -69,20 +70,24 @@ async function loadStats() {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const users = await usersRes.json();
-        document.getElementById('totalUsers').textContent = users.length || 0;
+        const totalUsersEl = document.getElementById('totalUsers');
+        if (totalUsersEl) totalUsersEl.textContent = users.length || 0;
 
         const productsRes = await fetch(`${API_BASE}/products`);
         const products = await productsRes.json();
-        document.getElementById('totalProducts').textContent = products.products?.length || 0;
+        const totalProductsEl = document.getElementById('totalProducts');
+        if (totalProductsEl) totalProductsEl.textContent = products.products?.length || 0;
 
         const ordersRes = await fetch(`${API_BASE}/orders`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const orders = await ordersRes.json();
-        document.getElementById('totalOrders').textContent = orders.orders?.length || 0;
+        const totalOrdersEl = document.getElementById('totalOrders');
+        if (totalOrdersEl) totalOrdersEl.textContent = orders.orders?.length || 0;
         
         const totalRevenue = orders.orders?.reduce((sum, order) => sum + parseFloat(order.total || 0), 0) || 0;
-        document.getElementById('totalRevenue').textContent = `₵${totalRevenue.toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const totalRevenueEl = document.getElementById('totalRevenue');
+        if (totalRevenueEl) totalRevenueEl.textContent = `₵${totalRevenue.toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     } catch (error) {
         console.error('Error loading stats:', error);
     }
@@ -97,27 +102,29 @@ async function loadUsers() {
         const users = await response.json();
         
         const tbody = document.getElementById('usersTableBody');
-        tbody.innerHTML = users.map(user => `
-            <tr>
-                <td><strong>${user.name}</strong></td>
-                <td>${user.email}</td>
-                <td><span class="badge badge-info">${user.role}</span></td>
-                <td>${user.phone || 'N/A'}</td>
-                <td>
-                    <span class="badge ${user.isActive ? 'badge-success' : 'badge-danger'}">
-                        ${user.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                </td>
-                <td>
-                    <div class="action-buttons">
-                        <button class="btn btn-sm ${user.isActive ? 'btn-danger' : 'btn-primary'}" 
-                                onclick="toggleUserStatus('${user.id}', ${!user.isActive})">
-                            ${user.isActive ? 'Deactivate' : 'Activate'}
-                        </button>
-                    </div>
-                </td>
-            </tr>
-        `).join('');
+        if (tbody) {
+            tbody.innerHTML = users.map(user => `
+                <tr>
+                    <td><strong>${user.name}</strong></td>
+                    <td>${user.email}</td>
+                    <td><span class="badge badge-info">${user.role}</span></td>
+                    <td>${user.phone || 'N/A'}</td>
+                    <td>
+                        <span class="badge ${user.isActive ? 'badge-success' : 'badge-danger'}">
+                            ${user.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-sm ${user.isActive ? 'btn-danger' : 'btn-primary'}" 
+                                    onclick="toggleUserStatus('${user.id}', ${!user.isActive})">
+                                ${user.isActive ? 'Deactivate' : 'Activate'}
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
     } catch (error) {
         console.error('Error loading users:', error);
     }
@@ -130,28 +137,30 @@ async function loadProducts() {
         const products = data.products || [];
         
         const tbody = document.getElementById('productsTableBody');
-        tbody.innerHTML = products.map(product => `
-            <tr>
-                <td><strong>${product.name}</strong></td>
-                <td>${product.farmer?.name || 'N/A'}</td>
-                <td>${product.category?.name || 'N/A'}</td>
-                <td>₵${product.pricing?.b2c?.price || 0}</td>
-                <td>${product.inventory?.availableQuantity || 0}</td>
-                <td>
-                    <span class="badge ${product.status === 'active' ? 'badge-success' : product.status === 'out_of_stock' ? 'badge-warning' : 'badge-danger'}">
-                        ${product.status}
-                    </span>
-                </td>
-                <td>
-                    <div class="action-buttons">
-                        <button class="btn btn-sm ${product.status === 'active' ? 'btn-danger' : 'btn-primary'}" 
-                                onclick="toggleProductStatus('${product.id}', '${product.status === 'active' ? 'inactive' : 'active'}')">
-                            ${product.status === 'active' ? 'Deactivate' : 'Activate'}
-                        </button>
-                    </div>
-                </td>
-            </tr>
-        `).join('');
+        if (tbody) {
+            tbody.innerHTML = products.map(product => `
+                <tr>
+                    <td><strong>${product.name}</strong></td>
+                    <td>${product.farmer?.name || 'N/A'}</td>
+                    <td>${product.category?.name || 'N/A'}</td>
+                    <td>₵${product.pricing?.b2c?.price || 0}</td>
+                    <td>${product.inventory?.availableQuantity || 0}</td>
+                    <td>
+                        <span class="badge ${product.status === 'active' ? 'badge-success' : product.status === 'out_of_stock' ? 'badge-warning' : 'badge-danger'}">
+                            ${product.status}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-sm ${product.status === 'active' ? 'btn-danger' : 'btn-primary'}" 
+                                    onclick="toggleProductStatus('${product.id}', '${product.status === 'active' ? 'inactive' : 'active'}')">
+                                ${product.status === 'active' ? 'Deactivate' : 'Activate'}
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
     } catch (error) {
         console.error('Error loading products:', error);
     }
@@ -167,28 +176,30 @@ async function loadOrders() {
         const orders = data.orders || [];
         
         const tbody = document.getElementById('ordersTableBody');
-        tbody.innerHTML = orders.map(order => `
-            <tr>
-                <td><strong>${order.orderNumber}</strong></td>
-                <td>${order.buyer?.name || 'N/A'}</td>
-                <td>${order.farmer?.name || 'N/A'}</td>
-                <td><strong>₵${parseFloat(order.total).toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
-                <td>
-                    <span class="badge badge-info">${order.status}</span>
-                </td>
-                <td>${new Date(order.createdAt).toLocaleDateString()}</td>
-                <td>
-                    <select class="filter-select" onchange="updateOrderStatus('${order.id}', this.value)">
-                        <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>Pending</option>
-                        <option value="confirmed" ${order.status === 'confirmed' ? 'selected' : ''}>Confirmed</option>
-                        <option value="processing" ${order.status === 'processing' ? 'selected' : ''}>Processing</option>
-                        <option value="shipped" ${order.status === 'shipped' ? 'selected' : ''}>Shipped</option>
-                        <option value="delivered" ${order.status === 'delivered' ? 'selected' : ''}>Delivered</option>
-                        <option value="cancelled" ${order.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
-                    </select>
-                </td>
-            </tr>
-        `).join('');
+        if (tbody) {
+            tbody.innerHTML = orders.map(order => `
+                <tr>
+                    <td><strong>${order.orderNumber}</strong></td>
+                    <td>${order.buyer?.name || 'N/A'}</td>
+                    <td>${order.farmer?.name || 'N/A'}</td>
+                    <td><strong>₵${parseFloat(order.total).toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
+                    <td>
+                        <span class="badge badge-info">${order.status}</span>
+                    </td>
+                    <td>${new Date(order.createdAt).toLocaleDateString()}</td>
+                    <td>
+                        <select class="filter-select" onchange="updateOrderStatus('${order.id}', this.value)">
+                            <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>Pending</option>
+                            <option value="confirmed" ${order.status === 'confirmed' ? 'selected' : ''}>Confirmed</option>
+                            <option value="processing" ${order.status === 'processing' ? 'selected' : ''}>Processing</option>
+                            <option value="shipped" ${order.status === 'shipped' ? 'selected' : ''}>Shipped</option>
+                            <option value="delivered" ${order.status === 'delivered' ? 'selected' : ''}>Delivered</option>
+                            <option value="cancelled" ${order.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+                        </select>
+                    </td>
+                </tr>
+            `).join('');
+        }
     } catch (error) {
         console.error('Error loading orders:', error);
     }
@@ -200,26 +211,28 @@ async function loadCategories() {
         allCategories = await response.json();
         
         const grid = document.getElementById('categoriesGrid');
-        grid.innerHTML = allCategories.map(category => `
-            <div class="category-card">
-                <div class="category-card-header">
-                    <h4>${category.name}</h4>
-                    <div class="category-card-actions">
-                        <button class="btn btn-sm btn-edit" onclick="editCategory('${category.id}')">✏️ Edit</button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteCategory('${category.id}')">🗑️ Delete</button>
+        if (grid) {
+            grid.innerHTML = allCategories.map(category => `
+                <div class="category-card">
+                    <div class="category-card-header">
+                        <h4>${category.name}</h4>
+                        <div class="category-card-actions">
+                            <button class="btn btn-sm btn-edit" onclick="editCategory('${category.id}')">✏️ Edit</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteCategory('${category.id}')">🗑️ Delete</button>
+                        </div>
+                    </div>
+                    <div class="category-card-body">
+                        ${category.description || 'No description'}
+                    </div>
+                    <div class="category-card-footer">
+                        <span class="badge ${category.isActive ? 'badge-success' : 'badge-danger'}">
+                            ${category.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                        ${category.parent ? `<span>Parent: ${category.parent.name}</span>` : '<span>Top Level</span>'}
                     </div>
                 </div>
-                <div class="category-card-body">
-                    ${category.description || 'No description'}
-                </div>
-                <div class="category-card-footer">
-                    <span class="badge ${category.isActive ? 'badge-success' : 'badge-danger'}">
-                        ${category.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                    ${category.parent ? `<span>Parent: ${category.parent.name}</span>` : '<span>Top Level</span>'}
-                </div>
-            </div>
-        `).join('');
+            `).join('');
+        }
         
         updateCategoryParentSelect();
     } catch (error) {
@@ -233,26 +246,28 @@ async function loadBrands() {
         allBrands = await response.json();
         
         const grid = document.getElementById('brandsGrid');
-        grid.innerHTML = allBrands.map(brand => `
-            <div class="brand-card">
-                <div class="brand-card-header">
-                    <h4>${brand.name}</h4>
-                    <div class="brand-card-actions">
-                        <button class="btn btn-sm btn-edit" onclick="editBrand('${brand.id}')">✏️ Edit</button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteBrand('${brand.id}')">🗑️ Delete</button>
+        if (grid) {
+            grid.innerHTML = allBrands.map(brand => `
+                <div class="brand-card">
+                    <div class="brand-card-header">
+                        <h4>${brand.name}</h4>
+                        <div class="brand-card-actions">
+                            <button class="btn btn-sm btn-edit" onclick="editBrand('${brand.id}')">✏️ Edit</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteBrand('${brand.id}')">🗑️ Delete</button>
+                        </div>
+                    </div>
+                    <div class="brand-card-body">
+                        ${brand.description || 'No description'}
+                        ${brand.website ? `<br><a href="${brand.website}" target="_blank">${brand.website}</a>` : ''}
+                    </div>
+                    <div class="brand-card-footer">
+                        <span class="badge ${brand.isActive ? 'badge-success' : 'badge-danger'}">
+                            ${brand.isActive ? 'Active' : 'Inactive'}
+                        </span>
                     </div>
                 </div>
-                <div class="brand-card-body">
-                    ${brand.description || 'No description'}
-                    ${brand.website ? `<br><a href="${brand.website}" target="_blank">${brand.website}</a>` : ''}
-                </div>
-                <div class="brand-card-footer">
-                    <span class="badge ${brand.isActive ? 'badge-success' : 'badge-danger'}">
-                        ${brand.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                </div>
-            </div>
-        `).join('');
+            `).join('');
+        }
     } catch (error) {
         console.error('Error loading brands:', error);
     }
@@ -260,7 +275,10 @@ async function loadBrands() {
 
 function updateCategoryParentSelect() {
     const select = document.getElementById('categoryParent');
-    const currentId = document.getElementById('categoryId').value;
+    const categoryIdEl = document.getElementById('categoryId');
+    if (!select || !categoryIdEl) return;
+    
+    const currentId = categoryIdEl.value;
     select.innerHTML = '<option value="">None (Top Level)</option>' +
         allCategories
             .filter(cat => cat.id !== currentId)
@@ -273,17 +291,26 @@ function openCategoryModal(category = null) {
     const form = document.getElementById('categoryForm');
     const title = document.getElementById('categoryModalTitle');
     
+    if (!modal || !form || !title) return;
+    
     if (category) {
         title.textContent = 'Edit Category';
-        document.getElementById('categoryId').value = category.id;
-        document.getElementById('categoryName').value = category.name;
-        document.getElementById('categoryDescription').value = category.description || '';
-        document.getElementById('categoryParent').value = category.parentId || '';
-        document.getElementById('categoryActive').checked = category.isActive;
+        const categoryIdEl = document.getElementById('categoryId');
+        const categoryNameEl = document.getElementById('categoryName');
+        const categoryDescEl = document.getElementById('categoryDescription');
+        const categoryParentEl = document.getElementById('categoryParent');
+        const categoryActiveEl = document.getElementById('categoryActive');
+        
+        if (categoryIdEl) categoryIdEl.value = category.id;
+        if (categoryNameEl) categoryNameEl.value = category.name;
+        if (categoryDescEl) categoryDescEl.value = category.description || '';
+        if (categoryParentEl) categoryParentEl.value = category.parentId || '';
+        if (categoryActiveEl) categoryActiveEl.checked = category.isActive;
     } else {
         title.textContent = 'Add Category';
         form.reset();
-        document.getElementById('categoryId').value = '';
+        const categoryIdEl = document.getElementById('categoryId');
+        if (categoryIdEl) categoryIdEl.value = '';
     }
     
     updateCategoryParentSelect();
@@ -291,7 +318,8 @@ function openCategoryModal(category = null) {
 }
 
 function closeCategoryModal() {
-    document.getElementById('categoryModal').style.display = 'none';
+    const modal = document.getElementById('categoryModal');
+    if (modal) modal.style.display = 'none';
 }
 
 function openBrandModal(brand = null) {
@@ -299,24 +327,34 @@ function openBrandModal(brand = null) {
     const form = document.getElementById('brandForm');
     const title = document.getElementById('brandModalTitle');
     
+    if (!modal || !form || !title) return;
+    
     if (brand) {
         title.textContent = 'Edit Brand';
-        document.getElementById('brandId').value = brand.id;
-        document.getElementById('brandName').value = brand.name;
-        document.getElementById('brandDescription').value = brand.description || '';
-        document.getElementById('brandWebsite').value = brand.website || '';
-        document.getElementById('brandActive').checked = brand.isActive;
+        const brandIdEl = document.getElementById('brandId');
+        const brandNameEl = document.getElementById('brandName');
+        const brandDescEl = document.getElementById('brandDescription');
+        const brandWebsiteEl = document.getElementById('brandWebsite');
+        const brandActiveEl = document.getElementById('brandActive');
+        
+        if (brandIdEl) brandIdEl.value = brand.id;
+        if (brandNameEl) brandNameEl.value = brand.name;
+        if (brandDescEl) brandDescEl.value = brand.description || '';
+        if (brandWebsiteEl) brandWebsiteEl.value = brand.website || '';
+        if (brandActiveEl) brandActiveEl.checked = brand.isActive;
     } else {
         title.textContent = 'Add Brand';
         form.reset();
-        document.getElementById('brandId').value = '';
+        const brandIdEl = document.getElementById('brandId');
+        if (brandIdEl) brandIdEl.value = '';
     }
     
     modal.style.display = 'block';
 }
 
 function closeBrandModal() {
-    document.getElementById('brandModal').style.display = 'none';
+    const modal = document.getElementById('brandModal');
+    if (modal) modal.style.display = 'none';
 }
 
 async function editCategory(id) {
@@ -451,166 +489,220 @@ async function updateOrderStatus(id, status) {
     }
 }
 
-document.getElementById('logoutBtn').addEventListener('click', () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = '/login';
-});
+// Export functions to window for inline handlers
+window.editCategory = editCategory;
+window.deleteCategory = deleteCategory;
+window.editBrand = editBrand;
+window.deleteBrand = deleteBrand;
+window.toggleUserStatus = toggleUserStatus;
+window.toggleProductStatus = toggleProductStatus;
+window.updateOrderStatus = updateOrderStatus;
+window.closeCategoryModal = closeCategoryModal;
+window.closeBrandModal = closeBrandModal;
 
-document.getElementById('addCategoryBtn').addEventListener('click', () => {
-    openCategoryModal();
-});
-
-document.getElementById('addBrandBtn').addEventListener('click', () => {
-    openBrandModal();
-});
-
-// User search functionality
-const userSearch = document.getElementById('userSearch');
-if (userSearch) {
-    userSearch.addEventListener('input', (e) => {
-        const searchTerm = e.target.value.toLowerCase();
-        const rows = document.querySelectorAll('#usersTableBody tr');
-        rows.forEach(row => {
-            const text = row.textContent.toLowerCase();
-            row.style.display = text.includes(searchTerm) ? '' : 'none';
+// Initialize event listeners
+function initializeEventListeners() {
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.onclick = () => {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+        };
+    }
+    
+    const addCategoryBtn = document.getElementById('addCategoryBtn');
+    if (addCategoryBtn) {
+        addCategoryBtn.onclick = () => openCategoryModal();
+    }
+    
+    const addBrandBtn = document.getElementById('addBrandBtn');
+    if (addBrandBtn) {
+        addBrandBtn.onclick = () => openBrandModal();
+    }
+    
+    const userSearch = document.getElementById('userSearch');
+    if (userSearch) {
+        userSearch.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('#usersTableBody tr');
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchTerm) ? '' : 'none';
+            });
         });
-    });
-}
-
-// Product search functionality
-const productSearch = document.getElementById('productSearch');
-if (productSearch) {
-    productSearch.addEventListener('input', (e) => {
-        const searchTerm = e.target.value.toLowerCase();
-        const rows = document.querySelectorAll('#productsTableBody tr');
-        rows.forEach(row => {
-            const text = row.textContent.toLowerCase();
-            row.style.display = text.includes(searchTerm) ? '' : 'none';
+    }
+    
+    const productSearch = document.getElementById('productSearch');
+    if (productSearch) {
+        productSearch.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('#productsTableBody tr');
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchTerm) ? '' : 'none';
+            });
         });
+    }
+    
+    const orderStatusFilter = document.getElementById('orderStatusFilter');
+    if (orderStatusFilter) {
+        orderStatusFilter.addEventListener('change', (e) => {
+            const filterValue = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('#ordersTableBody tr');
+            rows.forEach(row => {
+                if (!filterValue) {
+                    row.style.display = '';
+                } else {
+                    const statusBadge = row.querySelector('.badge');
+                    const status = statusBadge ? statusBadge.textContent.toLowerCase() : '';
+                    row.style.display = status.includes(filterValue) ? '' : 'none';
+                }
+            });
+        });
+    }
+    
+    const categoryForm = document.getElementById('categoryForm');
+    if (categoryForm) {
+        categoryForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const data = {
+                name: formData.get('name'),
+                description: formData.get('description'),
+                parentId: formData.get('parentId') || null,
+                isActive: formData.get('isActive') === 'on'
+            };
+            
+            const categoryIdEl = document.getElementById('categoryId');
+            const id = categoryIdEl ? categoryIdEl.value : '';
+            const token = localStorage.getItem('token');
+            
+            try {
+                const url = id ? `${API_BASE}/categories/${id}` : `${API_BASE}/categories`;
+                const method = id ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method,
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    showNotification(id ? 'Category updated successfully' : 'Category created successfully');
+                    closeCategoryModal();
+                    await loadCategories();
+                } else {
+                    const error = await response.json();
+                    showNotification(error.message || 'Failed to save category', 'error');
+                }
+            } catch (error) {
+                console.error('Error saving category:', error);
+                showNotification('Error saving category', 'error');
+            }
+        });
+    }
+    
+    const brandForm = document.getElementById('brandForm');
+    if (brandForm) {
+        brandForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const data = {
+                name: formData.get('name'),
+                description: formData.get('description'),
+                website: formData.get('website'),
+                isActive: formData.get('isActive') === 'on'
+            };
+            
+            const brandIdEl = document.getElementById('brandId');
+            const id = brandIdEl ? brandIdEl.value : '';
+            const token = localStorage.getItem('token');
+            
+            try {
+                const url = id ? `${API_BASE}/brands/${id}` : `${API_BASE}/brands`;
+                const method = id ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method,
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    showNotification(id ? 'Brand updated successfully' : 'Brand created successfully');
+                    closeBrandModal();
+                    await loadBrands();
+                } else {
+                    const error = await response.json();
+                    showNotification(error.message || 'Failed to save brand', 'error');
+                }
+            } catch (error) {
+                console.error('Error saving brand:', error);
+                showNotification('Error saving brand', 'error');
+            }
+        });
+    }
+    
+    document.querySelectorAll('.modal .close').forEach(closeBtn => {
+        closeBtn.onclick = (e) => {
+            const modal = e.target.closest('.modal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        };
     });
-}
-
-// Order status filter
-const orderStatusFilter = document.getElementById('orderStatusFilter');
-if (orderStatusFilter) {
-    orderStatusFilter.addEventListener('change', (e) => {
-        const filterValue = e.target.value.toLowerCase();
-        const rows = document.querySelectorAll('#ordersTableBody tr');
-        rows.forEach(row => {
-            if (!filterValue) {
-                row.style.display = '';
-            } else {
-                const statusBadge = row.querySelector('.badge');
-                const status = statusBadge ? statusBadge.textContent.toLowerCase() : '';
-                row.style.display = status.includes(filterValue) ? '' : 'none';
+    
+    window.onclick = (event) => {
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+    };
+    
+    // Navigation links smooth scroll
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const targetId = this.getAttribute('href').substring(1);
+            const targetElement = document.getElementById(targetId);
+            if (targetElement) {
+                targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         });
     });
 }
 
-document.getElementById('categoryForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const formData = new FormData(e.target);
-    const data = {
-        name: formData.get('name'),
-        description: formData.get('description'),
-        parentId: formData.get('parentId') || null,
-        isActive: formData.get('isActive') === 'on'
-    };
-    
-    const id = document.getElementById('categoryId').value;
-    const token = localStorage.getItem('token');
-    
-    try {
-        const url = id ? `${API_BASE}/categories/${id}` : `${API_BASE}/categories`;
-        const method = id ? 'PUT' : 'POST';
-        
-        const response = await fetch(url, {
-            method,
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
+// Initialize app
+function initApp() {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeEventListeners();
+            startApp();
         });
-        
-        if (response.ok) {
-            showNotification(id ? 'Category updated successfully' : 'Category created successfully');
-            closeCategoryModal();
-            await loadCategories();
-        } else {
-            const error = await response.json();
-            showNotification(error.message || 'Failed to save category', 'error');
-        }
-    } catch (error) {
-        console.error('Error saving category:', error);
-        showNotification('Error saving category', 'error');
+    } else {
+        initializeEventListeners();
+        startApp();
     }
-});
+}
 
-document.getElementById('brandForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const formData = new FormData(e.target);
-    const data = {
-        name: formData.get('name'),
-        description: formData.get('description'),
-        website: formData.get('website'),
-        isActive: formData.get('isActive') === 'on'
-    };
-    
-    const id = document.getElementById('brandId').value;
-    const token = localStorage.getItem('token');
-    
-    try {
-        const url = id ? `${API_BASE}/brands/${id}` : `${API_BASE}/brands`;
-        const method = id ? 'PUT' : 'POST';
-        
-        const response = await fetch(url, {
-            method,
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
-        });
-        
-        if (response.ok) {
-            showNotification(id ? 'Brand updated successfully' : 'Brand created successfully');
-            closeBrandModal();
-            await loadBrands();
-        } else {
-            const error = await response.json();
-            showNotification(error.message || 'Failed to save brand', 'error');
-        }
-    } catch (error) {
-        console.error('Error saving brand:', error);
-        showNotification('Error saving brand', 'error');
-    }
-});
-
-document.querySelectorAll('.close').forEach(closeBtn => {
-    closeBtn.addEventListener('click', (e) => {
-        e.target.closest('.modal').style.display = 'none';
-    });
-});
-
-window.onclick = (event) => {
-    const modals = document.querySelectorAll('.modal');
-    modals.forEach(modal => {
-        if (event.target === modal) {
-            modal.style.display = 'none';
-        }
-    });
-};
-
-(async () => {
+async function startApp() {
     const authenticated = await checkAuth();
     if (authenticated) {
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('adminContent').style.display = 'block';
+        const loadingEl = document.getElementById('loading');
+        const contentEl = document.getElementById('adminContent');
+        if (loadingEl) loadingEl.style.display = 'none';
+        if (contentEl) contentEl.style.display = 'block';
         await loadStats();
         await loadUsers();
         await loadProducts();
@@ -618,4 +710,6 @@ window.onclick = (event) => {
         await loadCategories();
         await loadBrands();
     }
-})();
+}
+
+initApp();
