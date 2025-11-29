@@ -132,7 +132,7 @@ function displayProducts(productsToShow) {
         const fallbackUrl = `https://via.placeholder.com/400x400/2c5530/ffffff?text=${encodeURIComponent(product.name)}`;
         
         return `
-            <div class="product-card" onclick="showProductModal('${product.id}')" style="cursor: pointer;">
+            <div class="product-card" data-product-id="${product.id}" style="cursor: pointer;">
                 <img src="${imageUrl}" 
                      alt="${product.name}" 
                      onerror="this.onerror=null; this.src='${fallbackUrl}';">
@@ -167,7 +167,17 @@ async function showProductModal(productId) {
     }
 
     const modal = document.getElementById('productModal');
+    if (!modal) {
+        showNotification('Product modal not found', 'error');
+        return;
+    }
+
     const body = document.getElementById('productModalBody');
+    if (!body) {
+        showNotification('Product modal body not found', 'error');
+        return;
+    }
+
     const pricing = currentUser.role === 'institutional_buyer' ? (product.pricing?.b2b || {}) : (product.pricing?.b2c || {});
     const stock = product.inventory?.availableQuantity || 0;
     const minQty = currentUser.role === 'institutional_buyer' ? (pricing.minQuantity || 1) : 1;
@@ -704,6 +714,21 @@ async function updateProfile() {
 document.addEventListener('DOMContentLoaded', () => {
     // Initialize cart UI on page load
     updateCartUI();
+    
+    // Product card click handler using event delegation
+    const productsGrid = document.getElementById('productsGrid');
+    if (productsGrid) {
+        productsGrid.addEventListener('click', (e) => {
+            // Find the closest product-card element
+            const productCard = e.target.closest('.product-card');
+            if (productCard) {
+                const productId = productCard.getAttribute('data-product-id');
+                if (productId) {
+                    showProductModal(productId);
+                }
+            }
+        });
+    }
     
     // Logout button
     const logoutBtn = document.getElementById('logoutBtn');
