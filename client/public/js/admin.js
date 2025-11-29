@@ -3,6 +3,31 @@ let currentUser = null;
 let allCategories = [];
 let allBrands = [];
 
+// Notification system
+function showNotification(message, type = 'success') {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'error' ? '#dc3545' : type === 'warning' ? '#ffc107' : '#28a745'};
+        color: white;
+        padding: 1rem 2rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        z-index: 3000;
+        animation: slideIn 0.3s;
+        max-width: 400px;
+    `;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
 async function checkAuth() {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -319,13 +344,14 @@ async function deleteCategory(id) {
         });
         
         if (response.ok) {
+            showNotification('Category deleted successfully');
             await loadCategories();
         } else {
-            alert('Failed to delete category');
+            showNotification('Failed to delete category', 'error');
         }
     } catch (error) {
         console.error('Error deleting category:', error);
-        alert('Error deleting category');
+        showNotification('Error deleting category', 'error');
     }
 }
 
@@ -340,13 +366,14 @@ async function deleteBrand(id) {
         });
         
         if (response.ok) {
+            showNotification('Brand deleted successfully');
             await loadBrands();
         } else {
-            alert('Failed to delete brand');
+            showNotification('Failed to delete brand', 'error');
         }
     } catch (error) {
         console.error('Error deleting brand:', error);
-        alert('Error deleting brand');
+        showNotification('Error deleting brand', 'error');
     }
 }
 
@@ -363,11 +390,15 @@ async function toggleUserStatus(id, status) {
         });
         
         if (response.ok) {
+            showNotification('User status updated successfully');
             await loadUsers();
             await loadStats();
+        } else {
+            showNotification('Failed to update user status', 'error');
         }
     } catch (error) {
         console.error('Error updating user status:', error);
+        showNotification('Error updating user status', 'error');
     }
 }
 
@@ -384,10 +415,14 @@ async function toggleProductStatus(id, status) {
         });
         
         if (response.ok) {
+            showNotification('Product status updated successfully');
             await loadProducts();
+        } else {
+            showNotification('Failed to update product status', 'error');
         }
     } catch (error) {
         console.error('Error updating product status:', error);
+        showNotification('Error updating product status', 'error');
     }
 }
 
@@ -404,11 +439,15 @@ async function updateOrderStatus(id, status) {
         });
         
         if (response.ok) {
+            showNotification('Order status updated successfully');
             await loadOrders();
             await loadStats();
+        } else {
+            showNotification('Failed to update order status', 'error');
         }
     } catch (error) {
         console.error('Error updating order status:', error);
+        showNotification('Error updating order status', 'error');
     }
 }
 
@@ -425,6 +464,50 @@ document.getElementById('addCategoryBtn').addEventListener('click', () => {
 document.getElementById('addBrandBtn').addEventListener('click', () => {
     openBrandModal();
 });
+
+// User search functionality
+const userSearch = document.getElementById('userSearch');
+if (userSearch) {
+    userSearch.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase();
+        const rows = document.querySelectorAll('#usersTableBody tr');
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(searchTerm) ? '' : 'none';
+        });
+    });
+}
+
+// Product search functionality
+const productSearch = document.getElementById('productSearch');
+if (productSearch) {
+    productSearch.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase();
+        const rows = document.querySelectorAll('#productsTableBody tr');
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(searchTerm) ? '' : 'none';
+        });
+    });
+}
+
+// Order status filter
+const orderStatusFilter = document.getElementById('orderStatusFilter');
+if (orderStatusFilter) {
+    orderStatusFilter.addEventListener('change', (e) => {
+        const filterValue = e.target.value.toLowerCase();
+        const rows = document.querySelectorAll('#ordersTableBody tr');
+        rows.forEach(row => {
+            if (!filterValue) {
+                row.style.display = '';
+            } else {
+                const statusBadge = row.querySelector('.badge');
+                const status = statusBadge ? statusBadge.textContent.toLowerCase() : '';
+                row.style.display = status.includes(filterValue) ? '' : 'none';
+            }
+        });
+    });
+}
 
 document.getElementById('categoryForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -454,15 +537,16 @@ document.getElementById('categoryForm').addEventListener('submit', async (e) => 
         });
         
         if (response.ok) {
+            showNotification(id ? 'Category updated successfully' : 'Category created successfully');
             closeCategoryModal();
             await loadCategories();
         } else {
             const error = await response.json();
-            alert(error.message || 'Failed to save category');
+            showNotification(error.message || 'Failed to save category', 'error');
         }
     } catch (error) {
         console.error('Error saving category:', error);
-        alert('Error saving category');
+        showNotification('Error saving category', 'error');
     }
 });
 
@@ -494,15 +578,16 @@ document.getElementById('brandForm').addEventListener('submit', async (e) => {
         });
         
         if (response.ok) {
+            showNotification(id ? 'Brand updated successfully' : 'Brand created successfully');
             closeBrandModal();
             await loadBrands();
         } else {
             const error = await response.json();
-            alert(error.message || 'Failed to save brand');
+            showNotification(error.message || 'Failed to save brand', 'error');
         }
     } catch (error) {
         console.error('Error saving brand:', error);
-        alert('Error saving brand');
+        showNotification('Error saving brand', 'error');
     }
 });
 

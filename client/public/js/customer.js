@@ -156,13 +156,13 @@ async function showProductModal(productId) {
             product = data.product || data;
         } catch (error) {
             console.error('Error fetching product:', error);
-            alert('Error loading product details');
+            showNotification('Error loading product details', 'error');
             return;
         }
     }
     
     if (!product) {
-        alert('Product not found');
+        showNotification('Product not found', 'error');
         return;
     }
 
@@ -237,18 +237,18 @@ function addToCart(productId, price, unit, maxStock, minQty) {
     const quantity = quantityInput ? parseInt(quantityInput.value) || minQty : minQty;
     
     if (quantity < minQty) {
-        alert(`Minimum quantity is ${minQty} ${unit}`);
+        showNotification(`Minimum quantity is ${minQty} ${unit}`, 'error');
         return;
     }
     
     if (quantity > maxStock) {
-        alert(`Only ${maxStock} ${unit} available`);
+        showNotification(`Only ${maxStock} ${unit} available`, 'error');
         return;
     }
     
     const product = products.find(p => p.id === productId);
     if (!product) {
-        alert('Product not found');
+        showNotification('Product not found', 'error');
         return;
     }
     
@@ -257,7 +257,7 @@ function addToCart(productId, price, unit, maxStock, minQty) {
     
     if (existingItem) {
         if (existingItem.quantity + quantity > maxStock) {
-            alert(`Cannot add more. Only ${maxStock} ${unit} available in total.`);
+            showNotification(`Cannot add more. Only ${maxStock} ${unit} available in total.`, 'error');
             return;
         }
         existingItem.quantity += quantity;
@@ -299,7 +299,7 @@ function updateCartQuantity(productId, change) {
     }
     
     if (newQuantity > item.maxStock) {
-        alert(`Only ${item.maxStock} ${item.unit} available`);
+        showNotification(`Only ${item.maxStock} ${item.unit} available`, 'error');
         return;
     }
     
@@ -381,7 +381,7 @@ function closeCart() {
 
 function checkout() {
     if (cart.length === 0) {
-        alert('Your cart is empty');
+        showNotification('Your cart is empty', 'error');
         return;
     }
     
@@ -389,7 +389,7 @@ function checkout() {
     const checkoutTotal = document.getElementById('checkoutTotal');
     
     if (!checkoutItems || !checkoutTotal) {
-        alert('Checkout form not found');
+        showNotification('Checkout form not found', 'error');
         return;
     }
     
@@ -555,19 +555,21 @@ async function loadProfile() {
     }
 }
 
-function showNotification(message) {
+// Notification system with error type support
+function showNotification(message, type = 'success') {
     const notification = document.createElement('div');
     notification.style.cssText = `
         position: fixed;
         top: 20px;
         right: 20px;
-        background: #28a745;
+        background: ${type === 'error' ? '#dc3545' : type === 'warning' ? '#ffc107' : '#28a745'};
         color: white;
         padding: 1rem 2rem;
         border-radius: 8px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         z-index: 3000;
         animation: slideIn 0.3s;
+        max-width: 400px;
     `;
     notification.textContent = message;
     document.body.appendChild(notification);
@@ -575,7 +577,127 @@ function showNotification(message) {
     setTimeout(() => {
         notification.style.animation = 'slideOut 0.3s';
         setTimeout(() => notification.remove(), 300);
-    }, 3000);
+    }, type === 'error' ? 5000 : 3000);
+}
+
+// Edit Profile functionality
+function openEditProfileModal() {
+    let modal = document.getElementById('editProfileModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'editProfileModal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Edit Profile</h2>
+                    <span class="close" onclick="closeEditProfileModal()">&times;</span>
+                </div>
+                <form id="editProfileForm">
+                    <div class="form-group">
+                        <label for="profileName">Name *</label>
+                        <input type="text" id="profileName" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="profilePhone">Phone</label>
+                        <input type="text" id="profilePhone" name="phone">
+                    </div>
+                    <div class="form-group">
+                        <label for="profileStreet">Street Address</label>
+                        <input type="text" id="profileStreet" name="street">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="profileCity">City</label>
+                            <input type="text" id="profileCity" name="city">
+                        </div>
+                        <div class="form-group">
+                            <label for="profileRegion">Region</label>
+                            <input type="text" id="profileRegion" name="region">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="profilePostalCode">Postal Code</label>
+                        <input type="text" id="profilePostalCode" name="postalCode">
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeEditProfileModal()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        // Form submission handler
+        document.getElementById('editProfileForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await updateProfile();
+        });
+    }
+    
+    // Populate form with current user data
+    if (currentUser) {
+        document.getElementById('profileName').value = currentUser.name || '';
+        document.getElementById('profilePhone').value = currentUser.phone || '';
+        if (currentUser.address) {
+            document.getElementById('profileStreet').value = currentUser.address.street || '';
+            document.getElementById('profileCity').value = currentUser.address.city || '';
+            document.getElementById('profileRegion').value = currentUser.address.region || '';
+            document.getElementById('profilePostalCode').value = currentUser.address.postalCode || '';
+        }
+    }
+    
+    modal.style.display = 'block';
+}
+
+function closeEditProfileModal() {
+    const modal = document.getElementById('editProfileModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+async function updateProfile() {
+    try {
+        const form = document.getElementById('editProfileForm');
+        const formData = new FormData(form);
+        
+        const data = {
+            name: formData.get('name'),
+            phone: formData.get('phone'),
+            address: {
+                street: formData.get('street'),
+                city: formData.get('city'),
+                region: formData.get('region'),
+                postalCode: formData.get('postalCode')
+            }
+        };
+        
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE}/auth/profile`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+            const updated = await response.json();
+            currentUser = updated.user || updated;
+            showNotification('Profile updated successfully');
+            closeEditProfileModal();
+            await loadProfile();
+        } else {
+            const error = await response.json();
+            showNotification(error.message || 'Failed to update profile', 'error');
+        }
+    } catch (error) {
+        console.error('Error updating profile:', error);
+        showNotification('Error updating profile', 'error');
+    }
 }
 
 // Event Listeners
@@ -600,6 +722,12 @@ document.addEventListener('DOMContentLoaded', () => {
         cartBtn.addEventListener('click', openCart);
     }
     
+    // Edit Profile button
+    const editProfileBtn = document.getElementById('editProfileBtn');
+    if (editProfileBtn) {
+        editProfileBtn.addEventListener('click', openEditProfileModal);
+    }
+    
     // Search and filters
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
@@ -621,127 +749,148 @@ document.addEventListener('DOMContentLoaded', () => {
         sortFilter.addEventListener('change', filterAndDisplayProducts);
     }
     
-   // Updated checkout form handler with Paystack integration
-const checkoutForm = document.getElementById('checkoutForm');
-if (checkoutForm) {
-    checkoutForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        if (cart.length === 0) {
-            alert('Your cart is empty');
-            return;
-        }
-        
-        const formData = new FormData(e.target);
-        const deliveryAddress = {
-            street: formData.get('street') || '',
-            city: formData.get('city') || '',
-            region: formData.get('region') || '',
-            postalCode: formData.get('postalCode') || ''
-        };
-        
-        // Validate required fields
-        if (!deliveryAddress.street || !deliveryAddress.city || !deliveryAddress.region) {
-            alert('Please fill in all required address fields');
-            return;
-        }
-        
-        const items = cart.map(item => ({
-            product: item.productId,
-            quantity: item.quantity
-        }));
-        
-        const notes = document.getElementById('orderNotes')?.value || '';
-        
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                alert('Please login again');
-                window.location.href = '/login';
+    // Updated checkout form handler with Paystack integration
+    const checkoutForm = document.getElementById('checkoutForm');
+    if (checkoutForm) {
+        checkoutForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (cart.length === 0) {
+                showNotification('Your cart is empty', 'error');
                 return;
             }
             
-            // Disable submit button
-            const submitBtn = e.target.querySelector('button[type="submit"]');
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.textContent = 'Creating Order...';
+            const formData = new FormData(e.target);
+            const deliveryAddress = {
+                street: formData.get('street') || '',
+                city: formData.get('city') || '',
+                region: formData.get('region') || '',
+                postalCode: formData.get('postalCode') || ''
+            };
+            
+            // Validate required fields
+            if (!deliveryAddress.street || !deliveryAddress.city || !deliveryAddress.region) {
+                showNotification('Please fill in all required address fields', 'error');
+                return;
             }
             
-            // Step 1: Create order first
-            const orderResponse = await fetch(`${API_BASE}/orders`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    items,
-                    deliveryAddress,
-                    notes
-                })
-            });
+            const items = cart.map(item => ({
+                product: item.productId,
+                quantity: item.quantity
+            }));
             
-            const orderResult = await orderResponse.json();
+            const notes = document.getElementById('orderNotes')?.value || '';
             
-            if (!orderResponse.ok) {
-                throw new Error(orderResult.message || orderResult.errors?.[0]?.msg || 'Failed to create order');
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    showNotification('Please login again', 'error');
+                    window.location.href = '/login';
+                    return;
+                }
+                
+                // Disable submit button
+                const submitBtn = e.target.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Creating Order...';
+                }
+                
+                // Step 1: Create order first
+                const orderResponse = await fetch(`${API_BASE}/orders`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        items,
+                        deliveryAddress,
+                        notes
+                    })
+                });
+                
+                const orderResult = await orderResponse.json();
+                
+                if (!orderResponse.ok) {
+                    throw new Error(orderResult.message || orderResult.errors?.[0]?.msg || 'Failed to create order');
+                }
+                
+                const orderId = orderResult.order?.id || orderResult.orderId;
+                const orderTotal = orderResult.order?.total || orderResult.total;
+                const orderNumber = orderResult.order?.orderNumber || orderResult.orderNumber;
+                
+                if (!orderId) {
+                    throw new Error('Order ID not received');
+                }
+                
+                // Step 2: Initialize Paystack payment
+                if (submitBtn) {
+                    submitBtn.textContent = 'Initializing Payment...';
+                }
+                
+                const paymentResponse = await fetch(`${API_BASE}/payments/initialize`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        orderId: orderId,
+                        email: currentUser.email,
+                        amount: parseFloat(orderTotal).toFixed(2),
+                        currency: 'GHS'
+                    })
+                });
+                
+                const paymentResult = await paymentResponse.json();
+                
+                if (!paymentResponse.ok || !paymentResult.success) {
+                    throw new Error(paymentResult.message || 'Failed to initialize payment');
+                }
+                
+                // Step 3: Redirect to Paystack payment page
+                if (paymentResult.authorization_url) {
+                    // Redirect to Paystack
+                    window.location.href = paymentResult.authorization_url;
+                } else {
+                    throw new Error('Payment URL not received');
+                }
+                
+            } catch (error) {
+                console.error('Checkout error:', error);
+                showNotification(error.message || 'Error processing checkout. Please try again.', 'error');
+                
+                // Re-enable submit button
+                const submitBtn = e.target.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Place Order';
+                }
             }
-            
-            const orderId = orderResult.order?.id || orderResult.orderId;
-            const orderTotal = orderResult.order?.total || orderResult.total;
-            const orderNumber = orderResult.order?.orderNumber || orderResult.orderNumber;
-            
-            if (!orderId) {
-                throw new Error('Order ID not received');
+        });
+    }
+    
+    // Modal close buttons
+    document.querySelectorAll('.close').forEach(closeBtn => {
+        closeBtn.addEventListener('click', (e) => {
+            const modal = e.target.closest('.modal');
+            if (modal) {
+                modal.style.display = 'none';
             }
-            
-            // Step 2: Initialize Paystack payment
-            if (submitBtn) {
-                submitBtn.textContent = 'Initializing Payment...';
-            }
-            
-            const paymentResponse = await fetch(`${API_BASE}/payments/initialize`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    orderId: orderId,
-                    email: currentUser.email,
-                    amount: parseFloat(orderTotal).toFixed(2),
-                    currency: 'GHS'
-                })
-            });
-            
-            const paymentResult = await paymentResponse.json();
-            
-            if (!paymentResponse.ok || !paymentResult.success) {
-                throw new Error(paymentResult.message || 'Failed to initialize payment');
-            }
-            
-            // Step 3: Redirect to Paystack payment page
-            if (paymentResult.authorization_url) {
-                // Redirect to Paystack
-                window.location.href = paymentResult.authorization_url;
-            } else {
-                throw new Error('Payment URL not received');
-            }
-            
-        } catch (error) {
-            console.error('Checkout error:', error);
-            alert(error.message || 'Error processing checkout. Please try again.');
-            
-            // Re-enable submit button
-            const submitBtn = e.target.querySelector('button[type="submit"]');
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Place Order';
-            }
-        }
+        });
     });
-}
+    
+    // Close modal on outside click
+    window.onclick = (event) => {
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+    };
+});
 
 // Handle payment verification callback
 function handlePaymentCallback() {
@@ -802,50 +951,6 @@ async function verifyPayment(reference) {
     }
 }
 
-// Update showNotification to support error type
-function showNotification(message, type = 'success') {
-    const notification = document.createElement('div');
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: ${type === 'error' ? '#dc3545' : '#28a745'};
-        color: white;
-        padding: 1rem 2rem;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        z-index: 3000;
-        animation: slideIn 0.3s;
-    `;
-    notification.textContent = message;
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s';
-        setTimeout(() => notification.remove(), 300);
-    }, 5000);
-}
-    // Modal close buttons
-    document.querySelectorAll('.close').forEach(closeBtn => {
-        closeBtn.addEventListener('click', (e) => {
-            const modal = e.target.closest('.modal');
-            if (modal) {
-                modal.style.display = 'none';
-            }
-        });
-    });
-    
-    // Close modal on outside click
-    window.onclick = (event) => {
-        const modals = document.querySelectorAll('.modal');
-        modals.forEach(modal => {
-            if (event.target === modal) {
-                modal.style.display = 'none';
-            }
-        });
-    };
-});
-
 // Initialize app
 (async () => {
     const authenticated = await checkAuth();
@@ -857,10 +962,10 @@ function showNotification(message, type = 'success') {
         await loadOrders();
         await loadProfile();
         updateCartUI();
-            // Handle payment callback if returning from Paystack
-   if (typeof handlePaymentCallback === 'function') {
-    handlePaymentCallback();
-}
+        
+        // Handle payment callback if returning from Paystack
+        if (typeof handlePaymentCallback === 'function') {
+            handlePaymentCallback();
+        }
     }
 })();
-
