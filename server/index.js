@@ -16,9 +16,12 @@ if (process.env.NODE_ENV === 'production') {
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "https://js.paystack.co"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://paystack.com", "https://*.paystack.com"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "https://js.paystack.co", "https://*.paystack.com"],
         imgSrc: ["'self'", "data:", "https:"],
+        frameSrc: ["'self'", "https://checkout.paystack.com", "https://*.paystack.com"],
+        connectSrc: ["'self'", "https://api.paystack.co", "https://*.paystack.com"],
+        fontSrc: ["'self'", "https:", "data:"]
       },
     },
     crossOriginEmbedderPolicy: false,

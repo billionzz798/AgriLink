@@ -857,8 +857,10 @@ function showNotification(message, type = 'success') {
         await loadOrders();
         await loadProfile();
         updateCartUI();
-         // Handle payment callback if returning from Paystack
-         handlePaymentCallback();
+            // Handle payment callback if returning from Paystack
+   if (typeof handlePaymentCallback === 'function') {
+    handlePaymentCallback();
+}
     }
 })();
 
