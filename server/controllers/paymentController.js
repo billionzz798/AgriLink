@@ -1,8 +1,18 @@
+/**
+ * Payment Controller
+ * 
+ * Handles Paystack payment gateway integration for processing
+ * payments for orders in the AgriLink platform.
+ */
+
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const { validationResult } = require('express-validator');
 
-// Initialize Paystack - handle missing key gracefully
+/**
+ * Initialize Paystack SDK
+ * Handles missing API key gracefully to prevent server crashes
+ */
 let paystack;
 try {
   if (process.env.PAYSTACK_SECRET_KEY) {
@@ -15,10 +25,22 @@ try {
   console.error('❌ Error initializing Paystack:', error.message);
 }
 
-// Initialize Paystack payment
+/**
+ * Initialize Paystack Payment
+ * Creates a payment transaction with Paystack and returns authorization URL
+ * 
+ * POST /api/payments/initialize
+ * Requires: Authentication
+ * 
+ * Request Body:
+ * - orderId: UUID of the order to pay for
+ * - email: Buyer's email address
+ * - amount: Payment amount in GHS
+ * - currency: Currency code (default: GHS)
+ */
 exports.initializePayment = async (req, res) => {
   try {
-    // Check if Paystack secret key is configured
+    // Check if Paystack is configured
     if (!process.env.PAYSTACK_SECRET_KEY || !paystack) {
       console.error('Paystack secret key not configured');
       return res.status(500).json({ 
@@ -29,6 +51,7 @@ exports.initializePayment = async (req, res) => {
       });
     }
 
+    // Validate request data
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ 
@@ -39,6 +62,7 @@ exports.initializePayment = async (req, res) => {
 
     const { orderId, email, amount, currency = 'GHS' } = req.body;
 
+    // Validate required fields
     if (!orderId || !email || !amount) {
       return res.status(400).json({ 
         success: false,
@@ -46,7 +70,7 @@ exports.initializePayment = async (req, res) => {
       });
     }
 
-    // Validate amount
+    // Validate amount is a positive number
     const numericAmount = parseFloat(amount);
     if (isNaN(numericAmount) || numericAmount <= 0) {
       return res.status(400).json({ 
@@ -69,6 +93,7 @@ exports.initializePayment = async (req, res) => {
       });
     }
 
+    // Authorization check
     if (order.buyerId !== req.user.id) {
       return res.status(403).json({ 
         success: false,
@@ -85,8 +110,10 @@ exports.initializePayment = async (req, res) => {
     }
 
     // Convert amount to pesewas (Paystack uses smallest currency unit)
+    // For GHS: 1 GHS = 100 pesewas
     const amountInPesewas = Math.round(numericAmount * 100);
 
+    // Validate minimum amount (₵1.00 = 100 pesewas)
     if (amountInPesewas < 100) {
       return res.status(400).json({ 
         success: false,
@@ -94,15 +121,20 @@ exports.initializePayment = async (req, res) => {
       });
     }
 
-    // Create payment reference
+    // Generate unique payment reference
     const reference = `AGR-${order.orderNumber}-${Date.now()}`;
 
-    // Get callback URL - prioritize environment variable, then construct
+    /**
+     * Get callback URL for payment redirect
+     * Priority:
+     * 1. PAYSTACK_CALLBACK_URL environment variable (for production)
+     * 2. Construct from request headers (for dynamic environments)
+     */
     let callbackUrl;
     if (process.env.PAYSTACK_CALLBACK_URL) {
       callbackUrl = `${process.env.PAYSTACK_CALLBACK_URL}/customer?payment=verify&reference=${reference}`;
     } else {
-      // For Fly.io, check for FLY_APP_NAME or use x-forwarded-host
+      // Determine protocol and host from request
       const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
       const host = req.headers['x-forwarded-host'] || req.get('host') || 'localhost:3000';
       callbackUrl = `${protocol}://${host}/customer?payment=verify&reference=${reference}`;
@@ -113,11 +145,13 @@ exports.initializePayment = async (req, res) => {
       email,
       amount: numericAmount,
       amountInPesewas,
-      reference,
-      callbackUrl
+      reference
     });
 
-    // Initialize Paystack payment
+    /**
+     * Initialize payment with Paystack
+     * This creates a payment transaction and returns an authorization URL
+     */
     let paystackResponse;
     try {
       paystackResponse = await paystack.transaction.initialize({
@@ -135,51 +169,39 @@ exports.initializePayment = async (req, res) => {
       });
     } catch (paystackError) {
       console.error('Paystack API error:', paystackError);
-      console.error('Error details:', {
-        message: paystackError.message,
-        code: paystackError.code,
-        statusCode: paystackError.statusCode
-      });
-      
       return res.status(500).json({ 
         success: false,
         message: 'Failed to connect to payment gateway',
-        error: process.env.NODE_ENV === 'development' ? paystackError.message : 'Payment gateway error',
-        details: process.env.NODE_ENV === 'development' ? {
-          code: paystackError.code,
-          statusCode: paystackError.statusCode
-        } : undefined
+        error: process.env.NODE_ENV === 'development' ? paystackError.message : 'Payment gateway error'
       });
     }
 
+    // Validate Paystack response
     if (!paystackResponse || !paystackResponse.status) {
       const errorMessage = paystackResponse?.message || 'Unknown Paystack error';
-      console.error('Paystack initialization failed:', {
-        status: paystackResponse?.status,
-        message: errorMessage,
-        response: paystackResponse
-      });
+      console.error('Paystack initialization failed:', errorMessage);
       
       return res.status(400).json({ 
         success: false,
         message: 'Failed to initialize payment',
-        error: errorMessage,
-        details: process.env.NODE_ENV === 'development' ? paystackResponse : undefined
+        error: errorMessage
       });
     }
 
-    // Verify response has required data
+    // Verify response contains authorization URL
     if (!paystackResponse.data || !paystackResponse.data.authorization_url) {
-      console.error('Paystack response missing authorization URL:', paystackResponse);
+      console.error('Paystack response missing authorization URL');
       return res.status(500).json({ 
         success: false,
         message: 'Invalid response from payment gateway',
-        error: 'Missing authorization URL',
-        details: process.env.NODE_ENV === 'development' ? paystackResponse : undefined
+        error: 'Missing authorization URL'
       });
     }
 
-    // Update order with payment reference
+    /**
+     * Update order with payment reference
+     * Status remains 'payment_pending' until payment is verified
+     */
     try {
       await order.update({
         payment: {
@@ -201,6 +223,7 @@ exports.initializePayment = async (req, res) => {
       authorizationUrl: paystackResponse.data.authorization_url
     });
 
+    // Return authorization URL for redirect
     res.json({
       success: true,
       message: 'Payment initialized successfully',
@@ -210,7 +233,6 @@ exports.initializePayment = async (req, res) => {
     });
   } catch (error) {
     console.error('Paystack initialization error:', error);
-    console.error('Error stack:', error.stack);
     res.status(500).json({ 
       success: false,
       message: 'Failed to initialize payment',
@@ -219,9 +241,18 @@ exports.initializePayment = async (req, res) => {
   }
 };
 
-// Verify Paystack payment
+/**
+ * Verify Paystack Payment
+ * Verifies payment status after user returns from Paystack
+ * Deducts inventory only after successful payment verification
+ * 
+ * GET /api/payments/verify/:reference
+ * 
+ * @param {String} reference - Payment reference from Paystack
+ */
 exports.verifyPayment = async (req, res) => {
   try {
+    // Check Paystack configuration
     if (!process.env.PAYSTACK_SECRET_KEY || !paystack) {
       return res.status(500).json({ 
         success: false,
@@ -238,7 +269,10 @@ exports.verifyPayment = async (req, res) => {
       });
     }
 
-    // Verify payment with Paystack
+    /**
+     * Verify payment with Paystack API
+     * This checks the actual payment status on Paystack's servers
+     */
     let paystackResponse;
     try {
       paystackResponse = await paystack.transaction.verify(reference);
@@ -251,13 +285,10 @@ exports.verifyPayment = async (req, res) => {
       });
     }
 
+    // Validate Paystack response
     if (!paystackResponse || !paystackResponse.status) {
       const errorMessage = paystackResponse?.message || 'Verification failed';
-      console.error('Paystack verification failed:', {
-        reference,
-        status: paystackResponse?.status,
-        message: errorMessage
-      });
+      console.error('Paystack verification failed:', errorMessage);
       
       return res.status(400).json({ 
         success: false,
@@ -268,7 +299,10 @@ exports.verifyPayment = async (req, res) => {
 
     const transaction = paystackResponse.data;
 
-    // Find order by payment reference
+    /**
+     * Find order by payment reference
+     * Uses JSONB query with fallback for compatibility
+     */
     let order;
     try {
       order = await Order.findOne({
@@ -282,6 +316,7 @@ exports.verifyPayment = async (req, res) => {
       });
     } catch (queryError) {
       // Fallback: query all orders and filter in memory
+      // (Some PostgreSQL versions may not support JSONB queries)
       console.warn('JSONB query failed, using fallback:', queryError.message);
       const allOrders = await Order.findAll({
         include: [
@@ -300,13 +335,19 @@ exports.verifyPayment = async (req, res) => {
       });
     }
 
-    // Check if payment is successful
+    /**
+     * Process successful payment
+     * - Deduct inventory from products
+     * - Update order payment status
+     * - Change order status to 'confirmed'
+     */
     if (transaction.status === 'success') {
       // Deduct inventory now that payment is confirmed
       for (const item of order.items) {
         try {
           const product = await Product.findByPk(item.product);
           if (product) {
+            // Move quantity from available to reserved
             product.inventory.reservedQuantity = (product.inventory.reservedQuantity || 0) + item.quantity;
             product.inventory.availableQuantity = (product.inventory.availableQuantity || 0) - item.quantity;
             await product.save();
@@ -316,13 +357,13 @@ exports.verifyPayment = async (req, res) => {
         }
       }
 
-      // Update order payment status
+      // Update order with payment success information
       await order.update({
         payment: {
           method: 'paystack',
           status: 'success',
           reference: reference,
-          amount: (transaction.amount / 100).toFixed(2),
+          amount: (transaction.amount / 100).toFixed(2), // Convert from pesewas to GHS
           currency: transaction.currency || 'GHS',
           paidAt: transaction.paid_at || new Date(),
           transactionId: transaction.id,
@@ -336,10 +377,12 @@ exports.verifyPayment = async (req, res) => {
         status: 'confirmed'
       });
 
+      // Handle redirect if requested
       if (req.query.redirect) {
         return res.redirect(`${req.query.redirect}?reference=${reference}&status=success&orderId=${order.id}`);
       }
 
+      // Return JSON response
       return res.json({
         success: true,
         message: 'Payment verified successfully',
@@ -357,7 +400,10 @@ exports.verifyPayment = async (req, res) => {
         }
       });
     } else {
-      // Payment failed
+      /**
+       * Payment failed
+       * Update order with failure status
+       */
       await order.update({
         payment: {
           ...order.payment,
@@ -380,7 +426,6 @@ exports.verifyPayment = async (req, res) => {
     }
   } catch (error) {
     console.error('Payment verification error:', error);
-    console.error('Error stack:', error.stack);
     res.status(500).json({ 
       success: false,
       message: 'Failed to verify payment',
@@ -389,7 +434,14 @@ exports.verifyPayment = async (req, res) => {
   }
 };
 
-// Get payment status
+/**
+ * Get Payment Status
+ * Retrieves current payment status for an order
+ * 
+ * GET /api/payments/status/:orderId
+ * Requires: Authentication
+ * Authorization: Order owner or admin
+ */
 exports.getPaymentStatus = async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -403,6 +455,7 @@ exports.getPaymentStatus = async (req, res) => {
       });
     }
 
+    // Authorization check
     if (order.buyerId !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ 
         success: false,
